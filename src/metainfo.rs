@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use url::Url;
 
-use crate::error::metainfo::Error as MetainfoError;
+use crate::error::metainfo::MetainfoError;
 use crate::storage_info::FileInfo;
 use crate::Sha1Hash;
 
@@ -233,6 +233,8 @@ mod raw {
         pub len: Option<u64>,
         /// a list of dictionaries each corresponding to a file (only when multiple files are being shared)
         pub files: Option<Vec<File>>,
+        /// not used filed but kept in here,
+        /// maybe for encode back a valid info hash for hashing.
         pub private: Option<u8>,
     }
 

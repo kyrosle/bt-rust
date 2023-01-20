@@ -1,5 +1,8 @@
 pub mod metainfo;
 pub mod error;
 pub mod storage_info;
+pub mod tracker;
 
-pub type Sha1Hash = [u8;20];
+mod define;
+pub use define::*;
+

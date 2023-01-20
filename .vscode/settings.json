@@ -1,7 +1,10 @@
 {
     "cSpell.words": [
         "bencode",
+        "leecher",
         "metainfo",
+        "numwant",
+        "reqwest",
         "SHALEN",
         "thiserror"
     ]

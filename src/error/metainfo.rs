@@ -1,7 +1,7 @@
-use serde_bencode::Error  as BencodeError;
+pub use serde_bencode::Error  as BencodeError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
+pub enum MetainfoError {
     #[error("{0}")]
     Bencode(BencodeError),
     #[error("Invalid Metainfo")]
@@ -12,13 +12,13 @@ pub enum Error {
     InvalidTrackerUrl,
 }
 
-impl From<BencodeError> for Error {
+impl From<BencodeError> for MetainfoError {
     fn from(error: BencodeError) -> Self {
         Self::Bencode(error)
     }
 }
 
-impl From<url::ParseError> for Error {
+impl From<url::ParseError> for MetainfoError {
     fn from(_: url::ParseError) -> Self {
         Self::InvalidTrackerUrl
     }
