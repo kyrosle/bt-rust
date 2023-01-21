@@ -1,4 +1,6 @@
-pub use serde_bencode::Error  as BencodeError;
+pub use serde_bencode::Error as BencodeError;
+
+pub(crate) type Result<T> = std::result::Result<T, MetainfoError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MetainfoError {

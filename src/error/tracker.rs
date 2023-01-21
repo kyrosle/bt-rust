@@ -1,11 +1,14 @@
 use crate::error::metainfo::BencodeError;
 use reqwest::Error as HttpError;
+
+pub type Result<T, E = TrackerError> = std::result::Result<T, E>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum TrackerError {
     #[error("{0}")]
     Bencode(BencodeError),
     #[error("{0}")]
-    Http(HttpError)
+    Http(HttpError),
 }
 
 impl From<BencodeError> for TrackerError {

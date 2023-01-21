@@ -1,11 +1,16 @@
 {
     "cSpell.words": [
         "bencode",
+        "bitfield",
+        "bitvec",
+        "blockinfo",
         "leecher",
         "metainfo",
         "numwant",
         "reqwest",
         "SHALEN",
-        "thiserror"
+        "thiserror",
+        "Unchoke",
+        "unchoked"
     ]
 }

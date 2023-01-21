@@ -1,30 +1,27 @@
-use std::net::{Ipv4Addr, IpAddr};
-use std::{time::Duration, net::SocketAddr};
+use std::net::{IpAddr, Ipv4Addr};
+use std::{net::SocketAddr, time::Duration};
 
 use bytes::Buf;
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
 use serde::de;
 use serde_derive::Deserialize;
 
-use crate::error::tracker::TrackerError;
 use crate::error::metainfo::BencodeError;
+use crate::error::tracker::TrackerError;
 
 pub mod announce;
 pub mod response;
-pub mod tracker;
 mod test;
+pub mod tracker;
 
 pub mod prelude {
     pub use super::announce::*;
-    pub use super::response::*;
-    pub use super::tracker::*;
-    pub use super::Result;
     pub use super::deserialize_peers;
     pub use super::deserialize_seconds;
+    pub use super::response::*;
+    pub use super::tracker::*;
+    pub use crate::error::tracker::Result;
 }
-
-
-pub type Result<T, E = TrackerError> = std::result::Result<T, E>;
 
 /// Deserialize an integer representing seconds into `Duration`.
 pub fn deserialize_seconds<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>

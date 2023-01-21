@@ -3,19 +3,17 @@ use std::path::{Path, PathBuf};
 
 use url::Url;
 
-use crate::error::metainfo::MetainfoError;
+use crate::error::metainfo::{MetainfoError, Result};
 use crate::storage_info::FileInfo;
 use crate::Sha1Hash;
-
-pub(crate) type Result<T> = std::result::Result<T, MetainfoError>;
 
 /// The meta info from torrent file.
 #[derive(Clone)]
 pub struct Metainfo {
     /// torrent name, the form for download path.
     pub name: String,
-    /// 20 bytes of SHA-1, 
-    /// Used for verifying the info. 
+    /// 20 bytes of SHA-1,
+    /// Used for verifying the info.
     /// structure: [20]bytes
     pub info_hash: Sha1Hash,
     /// contain the a concatenation of each piece's SHA-1,
@@ -46,8 +44,8 @@ impl fmt::Debug for Metainfo {
 impl Metainfo {
     /// Parse from a byte buffer to crate a [`Metainfo`] instance
     /// or return a Error about the invalid format, syntax or which come from `serde_bencode`
-    /// 
-    /// Here are some rules: 
+    ///
+    /// Here are some rules:
     /// - the bencode format and syntax should correct.
     /// - the length of pieces in info should be the multiple of 20.
     /// - cannot not contain both `length` (single file) and `files` (multi files).
@@ -219,10 +217,10 @@ mod raw {
         /// where the files are to be saved (if multiple files)
         pub name: String,
         #[serde(with = "serde_bytes")]
-        /// a hash list, i.e., a concatenation of each piece's SHA-1 hash. As SHA-1 returns a 160-bit hash, 
+        /// a hash list, i.e., a concatenation of each piece's SHA-1 hash. As SHA-1 returns a 160-bit hash,
         /// pieces will be a string whose length is a multiple of 20 bytes.
-        /// If the torrent contains multiple files, 
-        /// the pieces are formed by concatenating the files in the order they appear in the files dictionary 
+        /// If the torrent contains multiple files,
+        /// the pieces are formed by concatenating the files in the order they appear in the files dictionary
         /// (i.e., all pieces in the torrent are the full piece length except for the last piece, which may be shorter).
         pub pieces: Vec<u8>,
         #[serde(rename = "piece length")]

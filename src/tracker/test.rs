@@ -1,9 +1,12 @@
 /// test the tracker module correctly.
 #[cfg(test)]
 mod tests {
-    use std::{net::{Ipv4Addr, SocketAddr}, time::Duration};
+    use std::{
+        net::{Ipv4Addr, SocketAddr},
+        time::Duration,
+    };
 
-    use mockito::{Matcher, mock};
+    use mockito::{mock, Matcher};
     use serde_derive::{Deserialize, Serialize};
 
     use crate::tracker::prelude::*;
@@ -27,12 +30,12 @@ mod tests {
 
         let decoded: PeersResponse =
             serde_bencode::from_bytes(&encoded).expect("cannot decode bencode string of peers");
-    
+
         let addr = SocketAddr::new(ip.into(), port);
 
         assert_eq!(decoded.peers, vec![addr]);
     }
-    
+
     #[test]
     fn should_parse_full_peer_list() {
         #[derive(Debug, Serialize)]
@@ -65,8 +68,8 @@ mod tests {
 
         let encoded = serde_bencode::to_string(&peers).unwrap();
 
-        let decoded: PeersResponse = serde_bencode::from_str(&encoded)
-            .expect("cannot decode bencode list of peers");
+        let decoded: PeersResponse =
+            serde_bencode::from_str(&encoded).expect("cannot decode bencode list of peers");
         let expected: Vec<_> = peers
             .peers
             .iter()
@@ -130,14 +133,12 @@ mod tests {
         );
         // insert peers field into dict
         encoded_resp.extend_from_slice(b"5:peers");
-        encoded_resp.extend_from_slice(&encode_compact_peers_list(&[(
-            peer_ip, peer_port,
-        )]));
+        encoded_resp.extend_from_slice(&encode_compact_peers_list(&[(peer_ip, peer_port)]));
         // terminate dict
         encoded_resp.push(b'e');
 
-        // register the mock server. 
-        // (receive the specified announce and return the specified expected-response) 
+        // register the mock server.
+        // (receive the specified announce and return the specified expected-response)
         // both in bencode.
         let _m = mock("GET", "/")
             .match_query(Matcher::AllOf(vec![
@@ -145,24 +146,14 @@ mod tests {
                 Matcher::UrlEncoded("info_hash".into(), info_hash_str.into()),
                 Matcher::UrlEncoded("peer_id".into(), peer_id_str.into()),
                 Matcher::UrlEncoded("port".into(), announce.port.to_string()),
-                Matcher::UrlEncoded(
-                    "downloaded".into(),
-                    announce.downloaded.to_string(),
-                ),
-                Matcher::UrlEncoded(
-                    "uploaded".into(),
-                    announce.uploaded.to_string(),
-                ),
+                Matcher::UrlEncoded("downloaded".into(), announce.downloaded.to_string()),
+                Matcher::UrlEncoded("uploaded".into(), announce.uploaded.to_string()),
                 Matcher::UrlEncoded("left".into(), announce.left.to_string()),
-                Matcher::UrlEncoded(
-                    "numwant".into(),
-                    announce.peer_count.unwrap().to_string(),
-                ),
+                Matcher::UrlEncoded("numwant".into(), announce.peer_count.unwrap().to_string()),
             ]))
             .with_status(200)
             .with_body(encoded_resp)
             .create();
-        
 
         let resp = tracker.announce(announce).await.unwrap();
         assert_eq!(resp, expected_resp);

@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use crate::{Sha1Hash, PeerId};
+use crate::{PeerId, Sha1Hash};
 
 /// Parameters for announcing to a tracker (for request params).
 /// [`More details about the key meanings`](http://bittorrent.org/beps/bep_0003.html)

@@ -1,7 +1,8 @@
 use reqwest::{Client, Url};
 
+use super::prelude::Result;
+use super::URL_ENCODE_RESERVED;
 use super::{announce::Announce, response::Response};
-use super::{Result, URL_ENCODE_RESERVED};
 
 /// The HTTP tracker for a tonnert for which we can request peers as well as to announce transfer progress.
 pub struct Tracker {
