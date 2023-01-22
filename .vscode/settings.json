@@ -7,6 +7,8 @@
         "leecher",
         "metainfo",
         "numwant",
+        "peercodec",
+        "repr",
         "reqwest",
         "SHALEN",
         "thiserror",

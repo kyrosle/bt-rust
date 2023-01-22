@@ -2,6 +2,7 @@
 pub mod metainfo;
 pub mod peer;
 pub mod tracker;
+pub mod torrent;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
