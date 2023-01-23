@@ -6,10 +6,13 @@ pub(crate) type Result<T> = std::result::Result<T, MetainfoError>;
 pub enum MetainfoError {
     #[error("{0}")]
     Bencode(BencodeError),
+
     #[error("Invalid Metainfo")]
     InvalidMetainfo,
+
     #[error("Invalid Pieces")]
     InvalidPieces,
+
     #[error("Invalid Tracker Url")]
     InvalidTrackerUrl,
 }

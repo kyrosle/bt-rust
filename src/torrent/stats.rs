@@ -88,7 +88,7 @@ impl Peers {
 impl Default for Peers {
     fn default() -> Self {
         Self::Count(0)
-    }
+    } 
 }
 
 /// Aggregate statistics of a peer session.

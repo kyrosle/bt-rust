@@ -7,6 +7,7 @@ pub type Result<T, E = TrackerError> = std::result::Result<T, E>;
 pub enum TrackerError {
     #[error("{0}")]
     Bencode(BencodeError),
+
     #[error("{0}")]
     Http(HttpError),
 }

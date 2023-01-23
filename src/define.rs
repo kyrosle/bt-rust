@@ -29,6 +29,9 @@ pub(crate) const BLOCK_LEN: u32 = 0x4000;
 /// source code we use `usize` to be consistent with other index types in Rust.
 pub(crate) type PieceIndex = usize;
 
+/// The type of a file's index.
+pub(crate) type FileIndex = usize;
+
 /// Each torrent gets a randomly assigned ID that is globally unique.
 /// This id used in engine APIs to interact with torrents.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Hash)]

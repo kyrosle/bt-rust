@@ -21,7 +21,7 @@ pub struct Metainfo {
     /// formed ordered by the file in files dictionary.
     pub pieces: Vec<u8>,
     /// the length of the pieces
-    pub piece_len: usize,
+    pub piece_len: u32,
     /// A list of strings corresponding to subdirectory names,
     /// the last of which is the actual file name
     pub files: Vec<FileInfo>,
@@ -178,6 +178,19 @@ impl Metainfo {
     pub fn is_archive(&self) -> bool {
         self.files.len() > 1
     }
+
+    /// Returns total download size in bytes.
+    /// 
+    /// Note that this is an O(n) operation for archive downloads, where
+    /// n is the number of files, so the return value should ideally be cached.
+    pub fn download_len(&self) -> u64 {
+        self.files.iter().map(|f| f.len).sum()
+    }
+
+    /// Returns the number of pieces in this torrent.
+    pub fn piece_count(&self) -> usize {
+        self.pieces.len() / 20
+    }
 }
 
 mod raw {
@@ -225,7 +238,7 @@ mod raw {
         pub pieces: Vec<u8>,
         #[serde(rename = "piece length")]
         /// number of bytes per piece. This is commonly 28 KiB = 256 KiB = 262,144 B
-        pub piece_len: usize,
+        pub piece_len: u32,
         #[serde(rename = "length")]
         /// size of the file in bytes (only when one file is being shared though)
         pub len: Option<u64>,

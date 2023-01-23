@@ -9,6 +9,7 @@ pub enum TorrentError {
     /// The channel on which some component in engine was
     /// listening or sending died.
     Channel,
+
     #[error("{0}")]
     /// An Io error occurred.
     Io(std::io::Error),
