@@ -41,7 +41,7 @@ impl FileInfo {
     ///
     /// This will panic if `torrent_offset` is smaller than the file's offset in
     /// torrent, or if it's past the last byte in file. 
-    /// (TODO: Should replace with Error Type to wrapping.)
+    /// (TODO: Should replace with Error Type to wrapping. The panic may be recovering)
     pub fn get_slice(&self, torrent_offset: u64, len: u64) -> FileSlice {
         assert!(
             torrent_offset >= self.torrent_offset,

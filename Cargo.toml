@@ -34,6 +34,7 @@ bytes = "1.3.0"
 
 # bitfield
 bitvec = "1.0.1"
+iovec = "0.1.4"
 
 [dev-dependencies]
 # start local test serer
