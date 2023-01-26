@@ -1,6 +1,6 @@
 //! There 4 situations of edge case as below:
-//! 
-//! Unbounded:
+//!
+//! ## Unbounded:
 //!
 //! ```text
 //! -------------------
@@ -11,8 +11,8 @@
 //!                ^
 //!            split here
 //! ```
-//! 
-//! Split at Buffer boundary:
+//!
+//! ## Split at Buffer boundary:
 //!
 //! ```text
 //! -------------------
@@ -23,8 +23,8 @@
 //!                ^            
 //!            split here
 //! ```
-//! 
-//! Split within buffer:
+//!
+//! ## Split within buffer:
 //!
 //! ```text
 //! ------------------------------
@@ -35,8 +35,8 @@
 //!                              ^
 //!                          split here
 //! ```
-//! 
-//! Unbounded:
+//!
+//! ## Unbounded:
 //!
 //! ```text
 //! ------------------------------------------
@@ -65,24 +65,23 @@ pub struct IoVecs<'a> {
 impl<'a> IoVecs<'a> {
     /// Bounds the iovecs, potentially splitting it in two, if the total byte
     /// count of the buffers exceeds the limit.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bufs` - A slice that points to a contiguous list of IO vectors, which
     ///     in turn point to the actual blocks of memory used for file IO.
     /// * `max_len` - The maximum byte count of the total number of bytes in the
     ///     IO vectors.
-    /// 
-    /// # Panics 
-    /// 
+    ///
+    /// # Panics
+    ///
     /// The constructor panics if the max length is 0.
     pub fn bounded(bufs: &'a mut [IoSlice<'a>], max_len: usize) -> Self {
         assert!(max_len > 0, "IoVecs max length should be larger than 0.");
 
         // Detected whether the total byte count in bufs exceeds the slice
         // length by accumulating the buffer lengths and stopping at the buffer whose
-        // accumulated length exceeds the slice length. Taking the example in
-        // the docs, this would mean that we stop at the second buffer.
+        // accumulated length exceeds the slice length.
         let mut bufs_len = 0;
         let bufs_split_pos = match bufs.iter().position(|buf| {
             bufs_len += buf.as_slice().len();
@@ -92,7 +91,7 @@ impl<'a> IoVecs<'a> {
             None => return Self::unbounded(bufs),
         };
 
-        // If we're here, it means that the total buffers length exceeds the 
+        // If we're here, it means that the total buffers length exceeds the
         // slice length and we must split the buffers.
         if bufs_len == max_len {
             // The buffer boundary aligns with the file boundary. There are two
@@ -101,7 +100,7 @@ impl<'a> IoVecs<'a> {
             //      there is nothing to split.
             // 2. or we just need to split at the buffer boundary.
             if bufs_split_pos + 1 == bufs.len() {
-                // the split position is the end of the last buffer, so 
+                // the split position is the end of the last buffer, so
                 // there is nothing to split
                 Self::unbounded(bufs)
             } else {
@@ -116,6 +115,7 @@ impl<'a> IoVecs<'a> {
             // Find the position where we need to split the iovec.
             // We need the relative offset in the buffer within all buffers and
             // then subtracting that from the file length.
+            // (TODO: encapsulation the splitting position logic)
             let buf_to_split = bufs[bufs_split_pos].as_slice();
             let buf_offset = bufs_len - buf_to_split.len();
             let buf_split_pos = max_len - buf_offset;
@@ -143,6 +143,14 @@ impl<'a> IoVecs<'a> {
     }
 
     /// Creates a split where the split occurs within one of the buffers of `bufs`
+    /// 
+    /// # Arguments
+    /// 
+    /// * `bufs`: the whole buffers.
+    /// 
+    /// * `split_pos`: the index of splitting buffer.
+    /// 
+    /// * `buf_split_pos`: the position that should split at the splitting buffer position.
     fn split_within_buffer(
         bufs: &'a mut [IoSlice<'a>],
         split_pos: usize,
@@ -156,21 +164,34 @@ impl<'a> IoVecs<'a> {
         let (split_buf_first_half, split_buf_second_half) = buf_to_split.split_at(buf_split_pos);
 
         // We need to convert the second half of the split buffer into its
-        // raw representation, as we can't store a reference to it as well as 
+        // raw representation, as we can't store a reference to it as well as
         // store mutable references to the rest of the buffer in `IoVecs`.
-        // 
+        //
         // This is safe:
         // 1. The second half of the buffer is not used until the buffer is
         //      reconstructed.
         // 2. And we don't leak the raw buffer or pointers for other code to
         //      unsafely reconstruct the slice. The slice is only reconstructed
         //      in `IoVecs::into_second_half`, assigning it to the `IoSlice` at
-        //      `split_post` in `bufs`, without touching its underlying memory.
+        //      `split_post`(splitting buffer index) in `bufs`, 
+        //      without touching its underlying memory.
         let split_buf_second_half = RawBuf {
             ptr: split_buf_second_half.as_ptr(),
             len: split_buf_second_half.len(),
         };
 
+        // Shrink the iovec at the file boundary:
+        //
+        // Here we need to use unsafe code as there is no way to borrow
+        // a slice from `bufs` (`buf_to_split` above), and then assigning
+        // that same slice to another element of bufs below, as that would
+        // be an immutable and mutable borrow at the same time, breaking
+        // aliasing rules.
+        //
+        // However, it is safe to do so, as we're not actually touching the
+        // underlying byte buffer that the slice refers to, but simply replacing
+        // the `IoVec` at `split_pos` in `buf`, i.e. shrinking the slice
+        // itself, not the memory region pointed to by the slice.
         let split_buf_first_half = unsafe {
             std::slice::from_raw_parts(split_buf_first_half.as_ptr(), split_buf_first_half.len())
         };
@@ -185,12 +206,17 @@ impl<'a> IoVecs<'a> {
         }
     }
 
+    /// Returns an immutable slice to the iovecs in the `first half` of the split.
     #[inline]
     pub fn as_slice(&self) -> &[IoSlice<'a>] {
         if let Some(split) = &self.split {
+            // due to `Self::advance` it may be that the first half off the
+            // split is actually empty, in which case we need to return an
+            // empty slice
             if split.pos == 0 && !self.bufs.is_empty() && self.bufs[0].as_slice().is_empty() {
                 &self.bufs[0..0]
             } else {
+                // we need to include the buffer under the split position too
                 &self.bufs[0..=split.pos]
             }
         } else {
@@ -198,21 +224,67 @@ impl<'a> IoVecs<'a> {
         }
     }
 
+    /// Advances the internal cursor of the iovecs slice.
+    ///
+    /// # Notes
+    ///
+    /// Elements in the slice may be modified if the cursor is not advanced to
+    /// the end of the slice. For example if we have a slice of buffers with 2
+    /// `IoSlice`s, both of length 8, and we advance the cursor by 10 bytes the
+    /// first `IoSlice` will be untouched however the second will be modified to
+    /// remove the first 2 bytes.
+    /// 
+    /// # Panics
+    ///
+    /// Panics if `n` is larger than the combined byte count of the
+    /// buffers (first half of the split if there is any, or bytes in all
+    /// buffers if there is not).
     #[inline]
     pub fn advance(&mut self, n: usize) {
+        // This is mostly borrowed from:
+        //
+        // However, there is quite a bit more complexity here due to the iovecs
+        // potentially being split. For one, we must not advance past the split
+        // boundary, and because the iovecs may be split either on a buffer
+        // boundary or within a buffer, the edge cases crop up here.
+        //
+        // What we do is we first count how many whole buffers can be trimmed
+        // off from `self.as_slice()` (which returns only the first half of the
+        // split, if there is any), and then determine whether it is allowed to
+        // advance the given amount of bytes.
+        //
+        // Assuming `n` is for the whole first part of the split (the edge cases
+        // arise when near the split boundary), even if we're on a buffer
+        // boundary, we can not just trim off all buffers up until the boundary,
+        // because then, when returning the first half in `self.as_slice()` we
+        // would not be able to determine wether to return an empty slice or
+        // not. Either way, we need to keep the buffer at the split position, as
+        // some bytes of that buffer are either in the second half of the split,
+        // or the buffer is empty which we can use as a marker for returning and
+        // empty slice.
+
+        // the number of buffers to remove.
         let mut bufs_to_remove_count = 0;
+        // the total length of bytes from buffers which removed.
         let mut total_remove_len = 0;
 
+        // count the whole buffers to remove.
         for buf in self.as_slice().iter() {
             let buf_len = buf.as_slice().len();
+            // if the last byte to be removed is in this buffer, don't remove
+            // buffer, we just need to adjust its offset.
             if total_remove_len + buf_len > n {
                 break;
             } else {
+                // otherwise there are more bytes to remove than this buffer,
+                // ergo we want to remove it.
                 total_remove_len += buf_len;
                 bufs_to_remove_count += 1;
             }
         }
 
+        // if there is a split and we want to trim off the whole first half,
+        // we must keep the buffer at the split position.
         if let Some(split) = &self.split {
             if bufs_to_remove_count == split.pos + 1 {
                 if n > total_remove_len {
@@ -228,9 +300,17 @@ impl<'a> IoVecs<'a> {
             }
         }
 
+        // trim buffers off the front of `self.bufs`
+        //
+        // hack: We need the original lifetime of the slice and not the
+        // re-borrowed temporary lifetime of `&mut self` passed to this function
+        // (as would happen by re-assigning a sub-slice of `self.bufs` to itself),
+        // so we move the `bufs` slice out of `self` by value with the original
+        // lifetime and take the slice from that.
         let bufs = std::mem::take(&mut self.bufs);
         self.bufs = &mut bufs[bufs_to_remove_count..];
 
+        // if there is a split, also adjust the split position.
         if let Some(split) = &mut self.split {
             if bufs_to_remove_count >= split.pos {
                 split.pos = 0;
@@ -239,7 +319,10 @@ impl<'a> IoVecs<'a> {
             }
         }
 
+        // if there are buffers left, it may be that the first buffer needs some
+        // bytes trimmed off its front.
         if !self.bufs.is_empty() {
+            // adjust the advance count.
             let n = n - total_remove_len;
             if n > 0 {
                 let slice = self.bufs[0].as_slice();
@@ -251,9 +334,20 @@ impl<'a> IoVecs<'a> {
         }
     }
 
+    /// Returns the second half of the split, reconstructing the split buffer in
+    /// the middle, if necessary, consuming the split in the process.
+    #[inline]
     pub fn into_tail(self) -> &'a mut [IoSlice<'a>] {
         if let Some(second_half) = self.split {
+            // If the buffer at the boundary was split, we need to restore it
+            // first. Otherwise, the buffers were split at a buffer boundary
+            // so we can just return the second half of the split.
             if let Some(split_buf_second_half) = second_half.split_buf_second_half {
+                // See note in `Self::split_within_buffer`: 
+                // the pointers here refer to the same buffer at `bufs[split_pos]`,
+                // so all we're doing is resizing the slice at that position to be the
+                // second half of the original slice that was untouched since creating 
+                // this split.
                 let split_buf_second_half = unsafe {
                     let slice = std::slice::from_raw_parts(
                         split_buf_second_half.ptr,
@@ -262,10 +356,13 @@ impl<'a> IoVecs<'a> {
                     IoSlice::new(slice)
                 };
 
+                // restore the second half of the split buffer
                 self.bufs[second_half.pos] = split_buf_second_half;
             }
+            // return a slice to the buffers starting at the split position
             &mut self.bufs[second_half.pos..]
         } else {
+            // otherwise there is no second half, so we return an empty slice
             let write_buf_len = self.bufs.len();
             &mut self.bufs[write_buf_len..]
         }
@@ -290,7 +387,7 @@ struct Split {
     /// The position of the buffer in which the split occurred, either
     /// within the buffer or one past the end of the buffer. This means that
     /// this position includes the last buffer of the first half of the split, that
-    /// is, we would split at `[0, post]`.
+    /// is, we would split at `[0, pos]`.
     pos: usize,
     /// If set, it means that the buffer at `bufs[split_pos]` was further split
     /// in two. It contains the second half of the split buffer.
@@ -620,6 +717,8 @@ mod tests {
         // the first half of the split should be empty
         let mut first_half = iovecs.as_slice().iter().flat_map(|i| i.as_slice());
         assert!(first_half.next().is_none());
+        // same as above
+        assert!(iovecs.as_slice().iter().flat_map(|i| i.as_slice()).collect::<Vec<_>>().is_empty());
 
         // restore the second half of the split buffer, which shouldn't be
         // affected by the above advances
