@@ -21,7 +21,7 @@ pub type Bitfield = bitvec::prelude::BitVec<u8>;
 
 /// This is the only block length we're dealing with (except for possibly the
 /// last block).  It is the widely used and accepted 16 KiB.
-pub(crate) const BLOCK_LEN: u32 = 0x4000;
+pub const BLOCK_LEN: u32 = 0x4000;
 
 /// The type of a piece's index.
 ///
@@ -34,7 +34,7 @@ pub(crate) type FileIndex = usize;
 
 /// Each torrent gets a randomly assigned ID that is globally unique.
 /// This id used in engine APIs to interact with torrents.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Hash)]
 pub struct TorrentId(u32);
 
 impl TorrentId {

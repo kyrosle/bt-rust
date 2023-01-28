@@ -51,7 +51,15 @@
 //! In this example, 
 //! the first half of the split would be [0, 25), 
 //! the second half would be [25, 32).
-pub mod window;
 
-// TODO: for linux vector IO.
-// pub mod unix;
+
+#[cfg(target_os = "linux")]
+pub use nix::sys::uio::IoVec;
+
+#[cfg(target_os = "windows")]
+pub mod iovec;
+#[cfg(target_os = "windows")]
+pub use iovec::IoVec;
+
+pub mod utils;
+pub use utils::*;

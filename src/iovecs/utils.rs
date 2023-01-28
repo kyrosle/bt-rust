@@ -47,15 +47,15 @@
 //!                                    ^
 //!                                 split here
 //! ```
-use core::slice::SlicePattern;
-use std::io::IoSlice;
 
-/// Wrapper over a slice of [`IoSlice`]s that provides zero-copy functionality to
+use super::IoVec;
+
+/// Wrapper over a slice of [`IoVec`]s that provides zero-copy functionality to
 /// pass only a sub-slice of the iovecs to vectored IO functions.
 #[derive(Debug)]
 pub struct IoVecs<'a> {
     /// The entire view of the underlying buffers.
-    bufs: &'a mut [IoSlice<'a>],
+    bufs: &'a mut [IoVec],
     /// If set, the buffer is bounded by a given boundary, and is effectively
     /// "split". This includes metadata to reconstruct the second half of the
     /// split.
@@ -76,7 +76,7 @@ impl<'a> IoVecs<'a> {
     /// # Panics
     ///
     /// The constructor panics if the max length is 0.
-    pub fn bounded(bufs: &'a mut [IoSlice<'a>], max_len: usize) -> Self {
+    pub fn bounded(bufs: &'a mut [IoVec], max_len: usize) -> Self {
         assert!(max_len > 0, "IoVecs max length should be larger than 0.");
 
         // Detected whether the total byte count in bufs exceeds the slice
@@ -125,14 +125,14 @@ impl<'a> IoVecs<'a> {
         }
     }
 
-    /// Creates an unbounded `IoSlice`, meaning that no split is necessary.
-    pub fn unbounded(bufs: &'a mut [IoSlice<'a>]) -> Self {
+    /// Creates an unbounded `IoVec`, meaning that no split is necessary.
+    pub fn unbounded(bufs: &'a mut [IoVec]) -> Self {
         IoVecs { bufs, split: None }
     }
 
     /// Creates a "clean split", in which the split occurs at the buffer
     /// boundary and `bufs` need only be split at the slice level.
-    fn split_at_buffer_boundary(bufs: &'a mut [IoSlice<'a>], pos: usize) -> Self {
+    fn split_at_buffer_boundary(bufs: &'a mut [IoVec], pos: usize) -> Self {
         IoVecs {
             bufs,
             split: Some(Split {
@@ -143,19 +143,15 @@ impl<'a> IoVecs<'a> {
     }
 
     /// Creates a split where the split occurs within one of the buffers of `bufs`
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `bufs`: the whole buffers.
-    /// 
+    ///
     /// * `split_pos`: the index of splitting buffer.
-    /// 
+    ///
     /// * `buf_split_pos`: the position that should split at the splitting buffer position.
-    fn split_within_buffer(
-        bufs: &'a mut [IoSlice<'a>],
-        split_pos: usize,
-        buf_split_pos: usize,
-    ) -> Self {
+    fn split_within_buffer(bufs: &'a mut [IoVec], split_pos: usize, buf_split_pos: usize) -> Self {
         // save the original slice at the boundary, so that later we can
         // restore it.
         let buf_to_split = bufs[split_pos].as_slice();
@@ -172,8 +168,8 @@ impl<'a> IoVecs<'a> {
         //      reconstructed.
         // 2. And we don't leak the raw buffer or pointers for other code to
         //      unsafely reconstruct the slice. The slice is only reconstructed
-        //      in `IoVecs::into_second_half`, assigning it to the `IoSlice` at
-        //      `split_post`(splitting buffer index) in `bufs`, 
+        //      in `IoVecs::into_second_half`, assigning it to the `IoVec` at
+        //      `split_post`(splitting buffer index) in `bufs`,
         //      without touching its underlying memory.
         let split_buf_second_half = RawBuf {
             ptr: split_buf_second_half.as_ptr(),
@@ -195,7 +191,7 @@ impl<'a> IoVecs<'a> {
         let split_buf_first_half = unsafe {
             std::slice::from_raw_parts(split_buf_first_half.as_ptr(), split_buf_first_half.len())
         };
-        bufs[split_pos] = IoSlice::new(split_buf_first_half);
+        bufs[split_pos] = IoVec::new(split_buf_first_half);
 
         IoVecs {
             bufs,
@@ -208,7 +204,7 @@ impl<'a> IoVecs<'a> {
 
     /// Returns an immutable slice to the iovecs in the `first half` of the split.
     #[inline]
-    pub fn as_slice(&self) -> &[IoSlice<'a>] {
+    pub fn as_slice(&self) -> &[IoVec] {
         if let Some(split) = &self.split {
             // due to `Self::advance` it may be that the first half off the
             // split is actually empty, in which case we need to return an
@@ -224,16 +220,26 @@ impl<'a> IoVecs<'a> {
         }
     }
 
+    /// Return a u8 vector.
+    pub fn as_u8_vec(&self) -> Vec<u8> {
+        let slice = self.as_slice();
+        slice
+            .iter()
+            .map(|s| s.as_slice())
+            .flat_map(|s| s.to_vec())
+            .collect::<Vec<_>>()
+    }
+
     /// Advances the internal cursor of the iovecs slice.
     ///
     /// # Notes
     ///
     /// Elements in the slice may be modified if the cursor is not advanced to
     /// the end of the slice. For example if we have a slice of buffers with 2
-    /// `IoSlice`s, both of length 8, and we advance the cursor by 10 bytes the
-    /// first `IoSlice` will be untouched however the second will be modified to
+    /// `IoVec`s, both of length 8, and we advance the cursor by 10 bytes the
+    /// first `IoVec` will be untouched however the second will be modified to
     /// remove the first 2 bytes.
-    /// 
+    ///
     /// # Panics
     ///
     /// Panics if `n` is larger than the combined byte count of the
@@ -329,7 +335,7 @@ impl<'a> IoVecs<'a> {
                 assert!(slice.len() >= n);
                 let ptr = slice.as_ptr();
                 let slice = unsafe { std::slice::from_raw_parts(ptr.add(n), slice.len() - n) };
-                self.bufs[0] = IoSlice::new(slice);
+                self.bufs[0] = IoVec::new(slice);
             }
         }
     }
@@ -337,23 +343,23 @@ impl<'a> IoVecs<'a> {
     /// Returns the second half of the split, reconstructing the split buffer in
     /// the middle, if necessary, consuming the split in the process.
     #[inline]
-    pub fn into_tail(self) -> &'a mut [IoSlice<'a>] {
+    pub fn into_tail(self) -> &'a mut [IoVec] {
         if let Some(second_half) = self.split {
             // If the buffer at the boundary was split, we need to restore it
             // first. Otherwise, the buffers were split at a buffer boundary
             // so we can just return the second half of the split.
             if let Some(split_buf_second_half) = second_half.split_buf_second_half {
-                // See note in `Self::split_within_buffer`: 
+                // See note in `Self::split_within_buffer`:
                 // the pointers here refer to the same buffer at `bufs[split_pos]`,
                 // so all we're doing is resizing the slice at that position to be the
-                // second half of the original slice that was untouched since creating 
+                // second half of the original slice that was untouched since creating
                 // this split.
                 let split_buf_second_half = unsafe {
                     let slice = std::slice::from_raw_parts(
                         split_buf_second_half.ptr,
                         split_buf_second_half.len,
                     );
-                    IoSlice::new(slice)
+                    IoVec::new(slice)
                 };
 
                 // restore the second half of the split buffer
@@ -369,7 +375,7 @@ impl<'a> IoVecs<'a> {
     }
 }
 
-/// Represents the second half of a `&mut [IoSlice<&[u8]>]` split int two,
+/// Represents the second half of a `&mut [IoVec<&[u8]>]` split int two,
 /// where the split may not be on the boundary of two buffers.
 ///
 /// The complication arises from the fact that the split may not be on a buffer
@@ -401,7 +407,7 @@ struct RawBuf {
     len: usize,
 }
 
-/// This function is analogous to [`std::io::IoSlice::advance`](windows), expect
+/// This function is analogous to [`std::io::IoVec::advance`](windows), expect
 /// that it works on a list of mutable iovec buffers,
 /// while the former is for an immutable list of such buffers.
 ///
@@ -414,7 +420,7 @@ struct RawBuf {
 /// However, it has the effect that it may extend the file size, which is what
 /// `IoVec` guards against. Since this protection is not necessary for reads,
 /// but advancing the buffer cursor is, a free function is available for this purpose.
-pub fn advance<'a>(bufs: &'a mut [IoSlice<'a>], n: usize) -> &'a mut [IoSlice<'a>] {
+pub fn advance(bufs: &mut [IoVec], n: usize) -> &mut [IoVec] {
     // number of buffers to remove.
     let mut bufs_to_remove_count = 0;
     // total length of all the to be removed buffers.
@@ -444,7 +450,7 @@ pub fn advance<'a>(bufs: &'a mut [IoSlice<'a>], n: usize) -> &'a mut [IoSlice<'a
         let slice = unsafe {
             std::slice::from_raw_parts_mut(buf.as_ptr().add(offset) as *mut u8, buf.len() - offset)
         };
-        let _ = std::mem::replace(&mut bufs[0], IoSlice::new(slice));
+        let _ = std::mem::replace(&mut bufs[0], IoVec::new(slice));
     }
     bufs
 }
@@ -467,7 +473,7 @@ mod tests {
         let blocks = vec![(0..16).collect::<Vec<u8>>(), (16..32).collect::<Vec<u8>>()];
         let blocks_len: usize = blocks.iter().map(Vec::len).sum();
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // we should have both buffers
@@ -507,7 +513,7 @@ mod tests {
         let blocks = vec![(0..16).collect::<Vec<u8>>(), (16..32).collect::<Vec<u8>>()];
         let blocks_len: usize = blocks.iter().map(Vec::len).sum();
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // we should have both buffers
@@ -547,7 +553,7 @@ mod tests {
         let file_len = 25;
         let blocks = vec![(0..16).collect::<Vec<u8>>(), (16..32).collect::<Vec<u8>>()];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // we should have both buffers
@@ -594,7 +600,7 @@ mod tests {
             (32..48).collect::<Vec<u8>>(),
         ];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // we should have only the first two buffers
@@ -637,7 +643,7 @@ mod tests {
             (32..48).collect::<Vec<u8>>(),
         ];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let mut iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // advance past the first buffer (less then the whole write buffer/file
@@ -686,7 +692,7 @@ mod tests {
             (32..48).collect::<Vec<u8>>(),
         ];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let mut iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // 1st advance past the first buffer
@@ -718,7 +724,12 @@ mod tests {
         let mut first_half = iovecs.as_slice().iter().flat_map(|i| i.as_slice());
         assert!(first_half.next().is_none());
         // same as above
-        assert!(iovecs.as_slice().iter().flat_map(|i| i.as_slice()).collect::<Vec<_>>().is_empty());
+        assert!(iovecs
+            .as_slice()
+            .iter()
+            .flat_map(|i| i.as_slice())
+            .collect::<Vec<_>>()
+            .is_empty());
 
         // restore the second half of the split buffer, which shouldn't be
         // affected by the above advances
@@ -746,7 +757,7 @@ mod tests {
             (32..48).collect::<Vec<u8>>(),
         ];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let mut iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         // advance past the first two buffers, onto the iovecs bound
@@ -782,7 +793,7 @@ mod tests {
             (32..48).collect::<Vec<u8>>(),
         ];
 
-        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoSlice::new(buf)).collect();
+        let mut bufs: Vec<_> = blocks.iter().map(|buf| IoVec::new(buf)).collect();
         let mut iovecs = IoVecs::bounded(&mut bufs, file_len);
 
         let advance_count = file_len + 5;
@@ -792,7 +803,7 @@ mod tests {
     #[test]
     fn should_advance_into_first_buffer() {
         let mut bufs = vec![vec![0, 1, 2], vec![3, 4, 5]];
-        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoSlice::new(b)).collect();
+        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoVec::new(b)).collect();
 
         // should trim some from the first buffer
         let n = 2;
@@ -805,7 +816,7 @@ mod tests {
     #[test]
     fn should_trim_whole_first_buffer() {
         let mut bufs = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
-        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoSlice::new(b)).collect();
+        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoVec::new(b)).collect();
 
         // should trim entire first buffer
         let n = 3;
@@ -818,7 +829,7 @@ mod tests {
     #[test]
     fn should_advance_into_second_buffer() {
         let mut bufs = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
-        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoSlice::new(b)).collect();
+        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoVec::new(b)).collect();
 
         // should trim entire first buffer and some from second
         let n = 5;
@@ -831,7 +842,7 @@ mod tests {
     #[test]
     fn should_trim_all_buffers() {
         let mut bufs = vec![vec![0, 1, 2], vec![3, 4, 5], vec![6, 7, 8]];
-        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoSlice::new(b)).collect();
+        let mut iovecs: Vec<_> = bufs.iter_mut().map(|b| IoVec::new(b)).collect();
 
         // should trim everything
         let n = 9;

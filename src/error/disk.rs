@@ -51,4 +51,7 @@ pub enum ReadError {
     #[error("{0}")]
     /// An IO error occurred.
     Io(std::io::Error),
+
+    #[error("Inconsistent length")]
+    InconsistentLength,
 }
