@@ -6,6 +6,8 @@ pub mod storage_info;
 pub mod tracker;
 pub mod torrent;
 pub mod disk;
+pub mod download;
+pub mod piece_picker;
 
 pub mod iovecs;
 
