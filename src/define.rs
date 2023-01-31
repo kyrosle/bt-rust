@@ -22,6 +22,7 @@ pub type Bitfield = bitvec::prelude::BitVec<u8>;
 /// This is the only block length we're dealing with (except for possibly the
 /// last block).  It is the widely used and accepted 16 KiB.
 pub const BLOCK_LEN: u32 = 0x4000;
+// pub const BLOCK_LEN: u32 = 4;
 
 /// The type of a piece's index.
 ///

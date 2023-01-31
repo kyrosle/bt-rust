@@ -5,6 +5,7 @@
         "bitvec",
         "blockinfo",
         "bufs",
+        "hasher",
         "iovec",
         "iovecs",
         "leecher",
@@ -14,6 +15,8 @@
         "repr",
         "reqwest",
         "SHALEN",
+        "tempdir",
+        "tempfile",
         "thiserror",
         "Unchoke",
         "unchoked"

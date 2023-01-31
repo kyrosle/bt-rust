@@ -1,8 +1,17 @@
-use std::{collections::BTreeMap, ops::Range, sync::{self, Arc}};
+use std::{
+    collections::BTreeMap,
+    ops::Range,
+    sync::{self, Arc},
+};
 
 use sha1::{Digest, Sha1};
 
-use crate::{blockinfo::{block_count, CachedBlock, block_len}, FileIndex, Sha1Hash, error::disk::{WriteError, ReadError}, iovecs::IoVec};
+use crate::{
+    blockinfo::{block_count, block_len, CachedBlock},
+    error::disk::{ReadError, WriteError},
+    iovecs::IoVec,
+    FileIndex, Sha1Hash,
+};
 
 use super::file::TorrentFile;
 
@@ -69,11 +78,15 @@ impl Piece {
     pub fn write(
         &self,
         torrent_piece_offset: u64,
-        files: &[sync::RwLock<TorrentFile>],
+        files: &[sync::Mutex<TorrentFile>],
     ) -> Result<(), WriteError> {
         // convert the blocks to IO slices that the underlying
         // system-call can deal with.
-        let mut blocks: Vec<_> = self.blocks.values().collect();
+        let mut blocks = self
+            .blocks
+            .values()
+            .map(|b| IoVec::new(b))
+            .collect::<Vec<_>>();
 
         // the actual slice of blocks being worked on.
         let mut bufs = blocks.as_mut_slice();
@@ -89,11 +102,13 @@ impl Piece {
         let mut total_write_count = 0;
 
         for file in files.iter() {
-            let mut file = file.write().unwrap();
+            let mut file = file.lock().unwrap();
 
             // determine which part of the file we need to write to
             debug_assert!(self.len as u64 > total_write_count);
             let remaining_piece_len = self.len as u64 - total_write_count;
+
+            // println!("{torrent_write_offset},{remaining_piece_len}");
             let file_slice = file
                 .info
                 .get_slice(torrent_write_offset, remaining_piece_len);
@@ -106,13 +121,16 @@ impl Piece {
             debug_assert!(!bufs[0].as_slice().is_empty());
 
             // write to file
-            // let tail = file.write(file_slice, bufs)?;
+            println!("{:?}", file_slice);
+            println!("buf :{:?}", bufs);
+            let tail = file.write(file_slice, bufs)?;
+            println!("tail:{:?}", tail);
 
             // `write_vectored_at` only writes at most `slice.len` bytes
             // of `bufs` to disk and returns the portion that wasn't
             // written, which we can use to set the write buffer for the
             // next round.
-            // bufs = tail;
+            bufs = tail;
 
             torrent_write_offset += file_slice.len;
             total_write_count += file_slice.len;
@@ -123,86 +141,90 @@ impl Piece {
 
         Ok(())
     }
+}
 
-    /// Reads a piece's blocks from the specified portion of the file from disk.
-    ///
-    /// # Arguments
-    ///
-    /// * `torrent_piece_offset` - The absolute offset of the piece's first byte
-    ///     in the whole torrent. From this value the relative offset of piece
-    ///     within file is calculated.
-    /// * `file_range` - The files that contain data of the piece.
-    /// * `files` - A slice of all files in torrent.
-    /// * `len` - The length of the piece to read in. While this function is
-    ///     currently used to read the whole piece, it could also be used to
-    ///     read only a portion of the piece or serval pieces with this argument.
-    pub fn read(
-        torrent_piece_offset: u64,
-        file_range: Range<FileIndex>,
-        files: &[sync::RwLock<TorrentFile>],
-        len: u32,
-    ) -> Result<Vec<CachedBlock>, ReadError> {
-        // reserve a read buffer for all blocks in piece
-        let block_count = block_count(len);
-        let mut blocks = Vec::with_capacity(block_count);
+/// Reads a piece's blocks from the specified portion of the file from disk.
+///
+/// # Arguments
+///
+/// * `torrent_piece_offset` - The absolute offset of the piece's first byte
+///     in the whole torrent. From this value the relative offset of piece
+///     within file is calculated.
+/// * `file_range` - The files that contain data of the piece.
+/// * `files` - A slice of all files in torrent.
+/// * `len` - The length of the piece to read in. While this function is
+///     currently used to read the whole piece, it could also be used to
+///     read only a portion of the piece or serval pieces with this argument.
+pub fn read(
+    torrent_piece_offset: u64,
+    file_range: Range<FileIndex>,
+    files: &[sync::Mutex<TorrentFile>],
+    len: u32,
+) -> Result<Vec<CachedBlock>, ReadError> {
+    // reserve a read buffer for all blocks in piece
+    // let block_count = block_count(len);
+    // let mut blocks: Vec<Vec<u8>> = Vec::with_capacity(block_count);
 
-        for i in 0..block_count {
-            let block_len = block_len(len, i);
-            let mut buf = Vec::new();
-            buf.resize(block_len as usize, 0u8);
-            blocks.push(Arc::new(buf))
-        }
+    // for i in 0..block_count {
+    //     let block_len = block_len(len, i);
+    //     let mut buf = Vec::new();
+    //     buf.resize(block_len as usize, 0u8);
+    //     blocks.push(buf)
+    // }
 
-        // convert the block to IO slices that the underlying
-        // system-call can deal with.
-        let mut iovecs: Vec<IoVec> = blocks
-            .iter_mut()
-            .map(|b| {
-                IoVec::new(
-                    Arc::get_mut(b)
-                        .expect("cannot get mut ref to buffer only used by this thread")
-                        .as_mut_slice(),
-                )
-            })
-            .collect();
+    // convert the block to IO slices that the underlying
+    // system-call can deal with.
+    // let mut iovecs: Vec<IoVec> = blocks
+    //     .iter_mut()
+    //     .map(|b| {
+    //         IoVec::new(
+    //             Arc::get_mut(b)
+    //                 .expect("cannot get mut ref to buffer only used by this thread")
+    //                 .as_mut_slice(),
+    //         )
+    //     })
+    //     .collect();
 
-        let mut bufs = iovecs.as_mut_slice();
+    let mut blocks = vec![];
 
-        // loop through all files piece overlaps with and read that part of
-        // file
-        let files = &files[file_range];
-        debug_assert!(!files.is_empty());
-        let len = len as u64;
+    // loop through all files piece overlaps with and read that part of
+    // file
+    let files = &files[file_range];
+    debug_assert!(!files.is_empty());
+    let len = len as u64;
 
-        // the offset at which we need to read from torrent, which is updated
-        // with each read
-        let mut torrent_read_offset = torrent_piece_offset;
-        let mut total_read_count = 0;
+    // the offset at which we need to read from torrent, which is updated
+    // with each read
+    let mut torrent_read_offset = torrent_piece_offset;
+    let mut total_read_count = 0;
 
-        for file in files.iter() {
-            let file = file.read().unwrap();
+    for file in files.iter() {
+        let file = file.lock().unwrap();
 
-            // determine which part of the file we need to read from
-            debug_assert!(len > total_read_count);
-            let remaining_pieces_len = len - total_read_count;
-            let file_slice = file
-                .info
-                .get_slice(torrent_read_offset, remaining_pieces_len);
+        // determine which part of the file we need to read from
+        debug_assert!(len > total_read_count);
+        let remaining_pieces_len = len - total_read_count;
+        let file_slice = file
+            .info
+            .get_slice(torrent_read_offset, remaining_pieces_len);
 
-            // an empty file slice shouldn't occur as it would mean that piece
-            // was thought to span fewer files than it actually does.
-            debug_assert!(file_slice.len > 0);
+        // an empty file slice shouldn't occur as it would mean that piece
+        // was thought to span fewer files than it actually does.
+        debug_assert!(file_slice.len > 0);
 
-            // read data
-            bufs = file.read(file_slice, bufs)?;
+        // read data
+        // println!("in piece::read buf before read {:?}", bufs);
+        blocks.push(file.read(file_slice)?);
+        // println!("in piece::read buf after  read {:?}", bufs);
 
-            torrent_read_offset += file_slice.len;
-            total_read_count += file_slice.len;
-        }
-
-        // we should have read in the whole piece
-        debug_assert_eq!(total_read_count, len);
-
-        Ok(blocks)
+        torrent_read_offset += file_slice.len;
+        total_read_count += file_slice.len;
     }
+
+    // we should have read in the whole piece
+    debug_assert_eq!(total_read_count, len);
+
+    let blocks = blocks.into_iter().flatten().collect();
+
+    Ok(blocks)
 }

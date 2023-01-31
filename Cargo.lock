@@ -105,6 +105,7 @@ dependencies = [
  "serde_bytes",
  "serde_derive",
  "sha1",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-util",

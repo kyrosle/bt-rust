@@ -8,11 +8,10 @@ use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     blockinfo::BlockInfo,
-    disk,
     error::disk::{ReadError, WriteError},
     peer::SessionTick,
     storage_info::StorageInfo,
-    PeerId, PieceIndex, Sha1Hash, TorrentId, download::PieceDownload,
+    PeerId, PieceIndex, Sha1Hash, TorrentId, download::PieceDownload, piece_picker::PiecePicker, alert::AlertSender,
 };
 
 pub mod stats;
@@ -64,9 +63,9 @@ pub struct TorrentContext {
     pub info_hash: Sha1Hash,
     pub client_id: PeerId,
     pub cmd_tx: Sender,
-    // pub piece_picker: Arc<RwLock<PiecePicker>>,
+    pub piece_picker: Arc<RwLock<PiecePicker>>,
     pub download: RwLock<HashMap<PieceIndex, RwLock<PieceDownload>>>,
-    // pub alert_tx: AlertSender,
+    pub alert_tx: AlertSender,
     // pub disk_tx: disk::Sender,
     pub storage: StorageInfo,
 }

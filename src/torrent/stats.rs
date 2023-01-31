@@ -10,6 +10,7 @@ use crate::{
 };
 
 /// Aggregate statistics of a torrent.
+#[derive(Clone, Debug, Default)]
 pub struct TorrentStats {
     /// When the torrent was first started.
     pub start_time: Option<Instant>,
@@ -21,10 +22,10 @@ pub struct TorrentStats {
     pub pieces: PieceStats,
 
     /// The peers of the torrent.
-    /// 
+    ///
     /// By default, only the number of connected peers are sent with each
     /// torrent tick. This is the most efficient option.
-    /// 
+    ///
     /// However, if enabled in the torrent's configuration, a full list
     /// of peers with aggregate statistics is sent with each tick.
     pub peers: Peers,
@@ -34,6 +35,7 @@ pub struct TorrentStats {
 }
 
 /// Statistics of a torrent's pieces.
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
 pub struct PieceStats {
     /// The total number of pieces in torrent.
     pub total: usize,
@@ -88,7 +90,7 @@ impl Peers {
 impl Default for Peers {
     fn default() -> Self {
         Self::Count(0)
-    } 
+    }
 }
 
 /// Aggregate statistics of a peer session.

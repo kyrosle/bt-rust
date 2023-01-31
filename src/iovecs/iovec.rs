@@ -6,6 +6,9 @@ impl IoVec {
     pub fn new(value: &[u8]) -> Self {
         IoVec(value.to_vec())
     }
+    pub fn from_vec(value: Vec<u8>) -> Self {
+        IoVec(value)
+    }
     pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
