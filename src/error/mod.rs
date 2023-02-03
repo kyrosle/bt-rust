@@ -7,14 +7,25 @@ pub mod tracker;
 
 use std::net::SocketAddr;
 
-pub use peer::PeerError;
-pub use tokio::{io::Error as IoError, sync::mpsc::error::SendError};
-pub use torrent::TorrentError;
-pub use tracker::TrackerError;
+pub use disk::{
+    NewTorrentError, ReadError, Result as DiskResult,
+    WriteError,
+};
+pub use peer::{PeerError, Result as PeerResult};
+pub use tokio::{
+    io::Error as IoError, sync::mpsc::error::SendError,
+};
+pub use torrent::{
+    Result as TorrentResult, TorrentError,
+};
+pub use tracker::{
+    Result as TrackerResult, TrackerError,
+};
 
 use crate::TorrentId;
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T, E = Error> =
+    std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -44,7 +55,9 @@ pub enum Error {
     /// An error that occurred while a torrent was announcing to tracker.
     Tracker { id: TorrentId, error: TrackerError },
 
-    #[error("torrent {id} peer {addr} error: {error}")]
+    #[error(
+        "torrent {id} peer {addr} error: {error}"
+    )]
     /// An error that occurred in a torrent's session with a peer.
     Peer {
         id: TorrentId,

@@ -40,11 +40,18 @@ pub struct Piece {
 
 impl Piece {
     /// Places block into piece's writer buffer if it doesn't exist.
-    pub fn enqueue_block(&mut self, offset: u32, data: Vec<u8>) {
+    pub fn enqueue_block(
+        &mut self,
+        offset: u32,
+        data: Vec<u8>,
+    ) {
         use std::collections::btree_map::Entry;
         let entry = self.blocks.entry(offset);
         if matches!(entry, Entry::Occupied(_)) {
-            log::warn!("Duplicate piece block at offset {}", offset);
+            log::warn!(
+                "Duplicate piece block at offset {}",
+                offset
+            );
         } else {
             entry.or_insert(data);
         }
@@ -60,7 +67,10 @@ impl Piece {
     pub fn match_hash(&self) -> bool {
         // sanity check that we only call this method if we have all blocks in
         // piece
-        debug_assert_eq!(self.blocks.len(), block_count(self.len));
+        debug_assert_eq!(
+            self.blocks.len(),
+            block_count(self.len)
+        );
         let mut hasher = Sha1::new();
         for block in self.blocks.values() {
             hasher.update(block);
@@ -78,7 +88,7 @@ impl Piece {
     pub fn write(
         &self,
         torrent_piece_offset: u64,
-        files: &[sync::Mutex<TorrentFile>],
+        files: &[sync::RwLock<TorrentFile>],
     ) -> Result<(), WriteError> {
         // convert the blocks to IO slices that the underlying
         // system-call can deal with.
@@ -98,27 +108,34 @@ impl Piece {
 
         // the offset at which we need to write in torrent, which is updated
         // with each write.
-        let mut torrent_write_offset = torrent_piece_offset;
+        let mut torrent_write_offset =
+            torrent_piece_offset;
         let mut total_write_count = 0;
 
         for file in files.iter() {
-            let mut file = file.lock().unwrap();
+            let mut file = file.write().unwrap();
 
             // determine which part of the file we need to write to
-            debug_assert!(self.len as u64 > total_write_count);
-            let remaining_piece_len = self.len as u64 - total_write_count;
+            debug_assert!(
+                self.len as u64 > total_write_count
+            );
+            let remaining_piece_len =
+                self.len as u64 - total_write_count;
 
             // println!("{torrent_write_offset},{remaining_piece_len}");
-            let file_slice = file
-                .info
-                .get_slice(torrent_write_offset, remaining_piece_len);
+            let file_slice = file.info.get_slice(
+                torrent_write_offset,
+                remaining_piece_len,
+            );
 
             // an empty file slice shouldn't occur as it would mean that
             // piece was thought to span fewer files than it actually does
             debug_assert!(file_slice.len > 0);
             // the write buffer should still contain bytes to write
             debug_assert!(!bufs.is_empty());
-            debug_assert!(!bufs[0].as_slice().is_empty());
+            debug_assert!(!bufs[0]
+                .as_slice()
+                .is_empty());
 
             // write to file
             println!("{:?}", file_slice);
@@ -158,7 +175,7 @@ impl Piece {
 pub fn read(
     torrent_piece_offset: u64,
     file_range: Range<FileIndex>,
-    files: &[sync::Mutex<TorrentFile>],
+    files: &[sync::RwLock<TorrentFile>],
     len: u32,
 ) -> Result<Vec<CachedBlock>, ReadError> {
     // reserve a read buffer for all blocks in piece
@@ -199,14 +216,16 @@ pub fn read(
     let mut total_read_count = 0;
 
     for file in files.iter() {
-        let file = file.lock().unwrap();
+        let file = file.read().unwrap();
 
         // determine which part of the file we need to read from
         debug_assert!(len > total_read_count);
-        let remaining_pieces_len = len - total_read_count;
-        let file_slice = file
-            .info
-            .get_slice(torrent_read_offset, remaining_pieces_len);
+        let remaining_pieces_len =
+            len - total_read_count;
+        let file_slice = file.info.get_slice(
+            torrent_read_offset,
+            remaining_pieces_len,
+        );
 
         // an empty file slice shouldn't occur as it would mean that piece
         // was thought to span fewer files than it actually does.
@@ -224,7 +243,8 @@ pub fn read(
     // we should have read in the whole piece
     debug_assert_eq!(total_read_count, len);
 
-    let blocks = blocks.into_iter().flatten().collect();
+    let blocks =
+        blocks.into_iter().flatten().collect();
 
     Ok(blocks)
 }

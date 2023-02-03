@@ -48,10 +48,9 @@
 //!                          split here
 //! ```
 //!
-//! In this example, 
-//! the first half of the split would be [0, 25), 
+//! In this example,
+//! the first half of the split would be [0, 25),
 //! the second half would be [25, 32).
-
 
 #[cfg(target_os = "linux")]
 pub use nix::sys::uio::IoVec;

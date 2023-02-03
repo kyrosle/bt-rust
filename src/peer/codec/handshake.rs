@@ -3,7 +3,8 @@ use std::io::{self, Cursor};
 use bytes::{Buf, BufMut};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub const PROTOCOL_STRING: &str = "BitTorrent protocol";
+pub const PROTOCOL_STRING: &str =
+    "BitTorrent protocol";
 /// The message sent at the beginning of a peer session by both
 /// sides of the connection.
 ///
@@ -31,9 +32,14 @@ pub struct Handshake {
 
 impl Handshake {
     /// Create a new protocol version 1 handshake with the given info_hash and peer_id.
-    pub fn new(info_hash: [u8; 20], peer_id: [u8; 20]) -> Self {
+    pub fn new(
+        info_hash: [u8; 20],
+        peer_id: [u8; 20],
+    ) -> Self {
         let mut prot = [0; 19];
-        prot.copy_from_slice(PROTOCOL_STRING.as_bytes());
+        prot.copy_from_slice(
+            PROTOCOL_STRING.as_bytes(),
+        );
         Handshake {
             prot,
             reserved: [0; 8],
@@ -51,7 +57,11 @@ pub struct HandshakeCodec;
 
 impl Encoder<Handshake> for HandshakeCodec {
     type Error = io::Error;
-    fn encode(&mut self, handshake: Handshake, buf: &mut bytes::BytesMut) -> io::Result<()> {
+    fn encode(
+        &mut self,
+        handshake: Handshake,
+        buf: &mut bytes::BytesMut,
+    ) -> io::Result<()> {
         let Handshake {
             prot,
             reserved,
@@ -63,7 +73,10 @@ impl Encoder<Handshake> for HandshakeCodec {
         debug_assert_eq!(prot.len(), 19);
         buf.put_u8(prot.len() as u8);
         // we should only be sending the bittorrent protocol string
-        debug_assert_eq!(prot, PROTOCOL_STRING.as_bytes());
+        debug_assert_eq!(
+            prot,
+            PROTOCOL_STRING.as_bytes()
+        );
 
         // payload
         buf.extend_from_slice(&prot);
@@ -79,7 +92,10 @@ impl Decoder for HandshakeCodec {
     type Item = Handshake;
     type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut bytes::BytesMut) -> io::Result<Option<Handshake>> {
+    fn decode(
+        &mut self,
+        buf: &mut bytes::BytesMut,
+    ) -> io::Result<Option<Handshake>> {
         if buf.is_empty() {
             return Ok(None);
         }
@@ -90,7 +106,8 @@ impl Decoder for HandshakeCodec {
         // we just want to peek at this value.
         let mut tmp_buf = Cursor::new(&buf);
         let prot_len = tmp_buf.get_u8() as usize;
-        if prot_len != PROTOCOL_STRING.as_bytes().len() {
+        if prot_len != PROTOCOL_STRING.as_bytes().len()
+        {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 r#"Handshake must have the string "BitTorrent protocol"."#,

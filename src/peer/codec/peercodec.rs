@@ -3,7 +3,10 @@ use std::io::{self, Cursor};
 use bytes::{Buf, BufMut};
 use tokio_util::codec::{Decoder, Encoder};
 
-use crate::{blockinfo::BlockInfo, peer::codec::message::MessageId, Bitfield};
+use crate::{
+    blockinfo::BlockInfo,
+    peer::codec::message::MessageId, Bitfield,
+};
 
 use super::message::Message;
 
@@ -14,7 +17,11 @@ pub struct PeerCodec;
 impl Encoder<Message> for PeerCodec {
     type Error = io::Error;
 
-    fn encode(&mut self, msg: Message, buf: &mut bytes::BytesMut) -> io::Result<()> {
+    fn encode(
+        &mut self,
+        msg: Message,
+        buf: &mut bytes::BytesMut,
+    ) -> io::Result<()> {
         use Message::*;
 
         match msg {
@@ -33,7 +40,9 @@ impl Encoder<Message> for PeerCodec {
                 // message id
                 buf.put_u8(MessageId::Bitfield as u8);
                 // payload
-                buf.extend_from_slice(bitfield.as_raw_slice());
+                buf.extend_from_slice(
+                    bitfield.as_raw_slice(),
+                );
             }
             Choke => {
                 // message length prefix: 1 byte message id
@@ -56,7 +65,9 @@ impl Encoder<Message> for PeerCodec {
                 let msg_len = 1;
                 buf.put_u32(msg_len);
                 // message id
-                buf.put_u8(MessageId::Interested as u8);
+                buf.put_u8(
+                    MessageId::Interested as u8,
+                );
                 // no payload
             }
             NotInterested => {
@@ -64,7 +75,9 @@ impl Encoder<Message> for PeerCodec {
                 let msg_len = 1;
                 buf.put_u32(msg_len);
                 // message id
-                buf.put_u8(MessageId::NotInterested as u8);
+                buf.put_u8(
+                    MessageId::NotInterested as u8,
+                );
             }
             Have { piece_index } => {
                 // message length prefix:
@@ -96,14 +109,20 @@ impl Encoder<Message> for PeerCodec {
             } => {
                 // message length prefix:
                 // 1 byte message id, 4 byte piece index, 4 byte offset, and n byte block.
-                let msg_len = 1 + 4 + 4 + data.len() as u32;
+                let msg_len =
+                    1 + 4 + 4 + data.len() as u32;
                 buf.put_u32(msg_len);
                 // message id
                 buf.put_u8(MessageId::Block as u8);
                 // payload
                 let piece_index = piece_index
                     .try_into()
-                    .map_err(|e| io::Error::new(io::ErrorKind::Interrupted, e))?;
+                    .map_err(|e| {
+                        io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            e,
+                        )
+                    })?;
 
                 buf.put_u32(piece_index);
                 buf.put_u32(offset);
@@ -128,8 +147,14 @@ impl Encoder<Message> for PeerCodec {
 impl Decoder for PeerCodec {
     type Item = Message;
     type Error = io::Error;
-    fn decode(&mut self, buf: &mut bytes::BytesMut) -> io::Result<Option<Self::Item>> {
-        log::trace!("Decoder has {} byte(s) remaining", buf.remaining());
+    fn decode(
+        &mut self,
+        buf: &mut bytes::BytesMut,
+    ) -> io::Result<Option<Self::Item>> {
+        log::trace!(
+            "Decoder has {} byte(s) remaining",
+            buf.remaining()
+        );
 
         // the message length header must be present at the minimum,
         // otherwise we can't determine the message type.
@@ -169,12 +194,17 @@ impl Decoder for PeerCodec {
             return Ok(None);
         }
 
-        let msg_id = MessageId::try_from(buf.get_u8())?;
+        let msg_id =
+            MessageId::try_from(buf.get_u8())?;
         let msg = match msg_id {
             MessageId::Choke => Message::Choke,
             MessageId::Unchoke => Message::Unchoke,
-            MessageId::Interested => Message::Interested,
-            MessageId::NotInterested => Message::NotInterested,
+            MessageId::Interested => {
+                Message::Interested
+            }
+            MessageId::NotInterested => {
+                Message::NotInterested
+            }
             MessageId::Have => {
                 let piece_index = buf.get_u32();
                 let piece_index = piece_index
@@ -186,9 +216,12 @@ impl Decoder for PeerCodec {
                 // preallocate buffer to the length of bitfield, which
                 // is the value gotten by subtracting the id length from the
                 // message length.
-                let mut bitfield = vec![0; msg_len - 1];
+                let mut bitfield =
+                    vec![0; msg_len - 1];
                 buf.copy_to_slice(&mut bitfield);
-                Message::Bitfield(Bitfield::from_vec(bitfield))
+                Message::Bitfield(Bitfield::from_vec(
+                    bitfield,
+                ))
             }
             MessageId::Request => {
                 let piece_index = buf.get_u32();
@@ -248,7 +281,12 @@ mod tests {
     use bytes::{Bytes, BytesMut};
 
     use super::*;
-    use crate::{BLOCK_LEN, peer::codec::handshake::{HandshakeCodec, Handshake, PROTOCOL_STRING}};
+    use crate::{
+        peer::codec::handshake::{
+            Handshake, HandshakeCodec, PROTOCOL_STRING,
+        },
+        BLOCK_LEN,
+    };
 
     /// Tests a stream of arbitrary messages to ensure that not only do they
     /// encode and then decode correctly (like the individual test cases
@@ -256,7 +294,8 @@ mod tests {
     /// implementation in both cases.
     #[test]
     fn test_message_stream() {
-        let (handshake, encoded_handshake) = make_handshake();
+        let (handshake, encoded_handshake) =
+            make_handshake();
         let msgs = [
             make_choke(),
             make_unchoke(),
@@ -278,8 +317,13 @@ mod tests {
         ];
 
         // create byte stream of all above messages
-        let msgs_len = msgs.iter().fold(0, |acc, (_, encoded)| acc + encoded.len());
-        let mut read_buf = BytesMut::with_capacity(msgs_len);
+        let msgs_len = msgs
+            .iter()
+            .fold(0, |acc, (_, encoded)| {
+                acc + encoded.len()
+            });
+        let mut read_buf =
+            BytesMut::with_capacity(msgs_len);
         read_buf.extend_from_slice(&encoded_handshake);
         for (_, encoded) in &msgs {
             read_buf.extend_from_slice(encoded);
@@ -287,10 +331,14 @@ mod tests {
 
         // decode messages one by one from the byte stream in the same order as
         // they were encoded, starting with the handshake
-        let decoded_handshake = HandshakeCodec.decode(&mut read_buf).unwrap();
+        let decoded_handshake = HandshakeCodec
+            .decode(&mut read_buf)
+            .unwrap();
         assert_eq!(decoded_handshake, Some(handshake));
         for (msg, _) in &msgs {
-            let decoded_msg = PeerCodec.decode(&mut read_buf).unwrap();
+            let decoded_msg = PeerCodec
+                .decode(&mut read_buf)
+                .unwrap();
             assert_eq!(decoded_msg.unwrap(), *msg);
         }
     }
@@ -309,16 +357,27 @@ mod tests {
 
         // start with the handshake by adding only the first half of it to the
         // buffer
-        let (handshake, encoded_handshake) = make_handshake();
-        let handshake_split_pos = encoded_handshake.len() / 2;
-        read_buf.extend_from_slice(&encoded_handshake[0..handshake_split_pos]);
+        let (handshake, encoded_handshake) =
+            make_handshake();
+        let handshake_split_pos =
+            encoded_handshake.len() / 2;
+        read_buf.extend_from_slice(
+            &encoded_handshake[0..handshake_split_pos],
+        );
 
         // can't decode the handshake without the full message
-        assert!(HandshakeCodec.decode(&mut read_buf).unwrap().is_none());
+        assert!(HandshakeCodec
+            .decode(&mut read_buf)
+            .unwrap()
+            .is_none());
 
         // the handshake should successfully decode with the second half added
-        read_buf.extend_from_slice(&encoded_handshake[handshake_split_pos..]);
-        let decoded_handshake = HandshakeCodec.decode(&mut read_buf).unwrap();
+        read_buf.extend_from_slice(
+            &encoded_handshake[handshake_split_pos..],
+        );
+        let decoded_handshake = HandshakeCodec
+            .decode(&mut read_buf)
+            .unwrap();
         assert_eq!(decoded_handshake, Some(handshake));
 
         let msgs = [
@@ -345,12 +404,21 @@ mod tests {
         for (msg, encoded) in &msgs {
             // add the first half of the message
             let split_pos = encoded.len() / 2;
-            read_buf.extend_from_slice(&encoded[0..split_pos]);
+            read_buf.extend_from_slice(
+                &encoded[0..split_pos],
+            );
             // fail to decode
-            assert!(PeerCodec.decode(&mut read_buf).unwrap().is_none());
+            assert!(PeerCodec
+                .decode(&mut read_buf)
+                .unwrap()
+                .is_none());
             // add the second half
-            read_buf.extend_from_slice(&encoded[split_pos..]);
-            let decoded_msg = PeerCodec.decode(&mut read_buf).unwrap();
+            read_buf.extend_from_slice(
+                &encoded[split_pos..],
+            );
+            let decoded_msg = PeerCodec
+                .decode(&mut read_buf)
+                .unwrap();
             assert_eq!(decoded_msg.unwrap(), *msg);
         }
     }
@@ -358,20 +426,30 @@ mod tests {
     /// Tests the encoding and subsequent decoding of a valid handshake.
     #[test]
     fn test_handshake_codec() {
-        let (handshake, expected_encoded) = make_handshake();
+        let (handshake, expected_encoded) =
+            make_handshake();
 
         // encode handshake
-        let mut encoded = BytesMut::with_capacity(expected_encoded.len());
-        HandshakeCodec.encode(handshake, &mut encoded).unwrap();
+        let mut encoded = BytesMut::with_capacity(
+            expected_encoded.len(),
+        );
+        HandshakeCodec
+            .encode(handshake, &mut encoded)
+            .unwrap();
         assert_eq!(encoded, expected_encoded);
 
         // don't decode handshake if there aren't enough bytes in source buffer
-        let mut partial_encoded = encoded[0..30].into();
-        let decoded = HandshakeCodec.decode(&mut partial_encoded).unwrap();
+        let mut partial_encoded =
+            encoded[0..30].into();
+        let decoded = HandshakeCodec
+            .decode(&mut partial_encoded)
+            .unwrap();
         assert_eq!(decoded, None);
 
         // decode same handshake
-        let decoded = HandshakeCodec.decode(&mut encoded).unwrap();
+        let decoded = HandshakeCodec
+            .decode(&mut encoded)
+            .unwrap();
         assert_eq!(decoded, Some(handshake));
     }
 
@@ -389,7 +467,8 @@ mod tests {
             let peer_id = [0; 20];
 
             let buf_len = prot.len() + 49;
-            let mut buf = BytesMut::with_capacity(buf_len);
+            let mut buf =
+                BytesMut::with_capacity(buf_len);
             // the message length prefix is not actually included in the value
             let prot_len = prot.len() as u8;
             buf.put_u8(prot_len);
@@ -399,7 +478,8 @@ mod tests {
             buf.extend_from_slice(&peer_id);
             buf
         };
-        let result = HandshakeCodec.decode(&mut invalid_encoded);
+        let result = HandshakeCodec
+            .decode(&mut invalid_encoded);
         assert!(result.is_err());
     }
 
@@ -407,7 +487,9 @@ mod tests {
     fn make_handshake() -> (Handshake, Bytes) {
         // protocol string
         let mut prot = [0; 19];
-        prot.copy_from_slice(PROTOCOL_STRING.as_bytes());
+        prot.copy_from_slice(
+            PROTOCOL_STRING.as_bytes(),
+        );
 
         // the reserved field is all zeros for now as we don't use extensions
         // yet so we're not testing it
@@ -417,7 +499,8 @@ mod tests {
         // of this test
         const INFO_HASH: &str = "da39a3ee5e6b4b0d3255";
         let mut info_hash = [0; 20];
-        info_hash.copy_from_slice(INFO_HASH.as_bytes());
+        info_hash
+            .copy_from_slice(INFO_HASH.as_bytes());
 
         const PEER_ID: &str = "cbt-2020-03-03-00000";
         let mut peer_id = [0; 20];
@@ -452,7 +535,8 @@ mod tests {
     /// Tests the encoding and subsequent decoding of a valid 'choke' message.
     #[test]
     fn test_keep_alive_codec() {
-        let (msg, expected_encoded) = make_keep_alive();
+        let (msg, expected_encoded) =
+            make_keep_alive();
         assert_message_codec(msg, expected_encoded);
     }
 
@@ -474,7 +558,8 @@ mod tests {
     /// message.
     #[test]
     fn test_interested_codec() {
-        let (msg, expected_encoded) = make_interested();
+        let (msg, expected_encoded) =
+            make_interested();
         assert_message_codec(msg, expected_encoded);
     }
 
@@ -482,7 +567,8 @@ mod tests {
     /// message.
     #[test]
     fn test_not_interested_codec() {
-        let (msg, expected_encoded) = make_not_interested();
+        let (msg, expected_encoded) =
+            make_not_interested();
         assert_message_codec(msg, expected_encoded);
     }
 
@@ -523,31 +609,47 @@ mod tests {
 
     /// Helper function that asserts that a message is encoded and subsequently
     /// decoded correctly.
-    fn assert_message_codec(msg: Message, expected_encoded: Bytes) {
+    fn assert_message_codec(
+        msg: Message,
+        expected_encoded: Bytes,
+    ) {
         // encode message
-        let mut encoded = BytesMut::with_capacity(expected_encoded.len());
-        PeerCodec.encode(msg.clone(), &mut encoded).unwrap();
+        let mut encoded = BytesMut::with_capacity(
+            expected_encoded.len(),
+        );
+        PeerCodec
+            .encode(msg.clone(), &mut encoded)
+            .unwrap();
         assert_eq!(encoded, expected_encoded);
 
         // don't decode message if there aren't enough bytes in source buffer
-        let mut partial_encoded = encoded[0..encoded.len() - 1].into();
-        let decoded = PeerCodec.decode(&mut partial_encoded).unwrap();
+        let mut partial_encoded =
+            encoded[0..encoded.len() - 1].into();
+        let decoded = PeerCodec
+            .decode(&mut partial_encoded)
+            .unwrap();
         assert_eq!(decoded, None);
 
         // decode same message
-        let decoded = PeerCodec.decode(&mut encoded).unwrap();
+        let decoded =
+            PeerCodec.decode(&mut encoded).unwrap();
         assert_eq!(decoded, Some(msg));
     }
 
     fn make_keep_alive() -> (Message, Bytes) {
-        (Message::KeepAlive, Bytes::from_static(&[0; 4]))
+        (
+            Message::KeepAlive,
+            Bytes::from_static(&[0; 4]),
+        )
     }
 
     // Returns `Choke` and its expected encoded variant.
     fn make_choke() -> (Message, Bytes) {
         (
             Message::Choke,
-            make_empty_msg_encoded_payload(MessageId::Choke),
+            make_empty_msg_encoded_payload(
+                MessageId::Choke,
+            ),
         )
     }
 
@@ -555,7 +657,9 @@ mod tests {
     fn make_unchoke() -> (Message, Bytes) {
         (
             Message::Unchoke,
-            make_empty_msg_encoded_payload(MessageId::Unchoke),
+            make_empty_msg_encoded_payload(
+                MessageId::Unchoke,
+            ),
         )
     }
 
@@ -563,7 +667,9 @@ mod tests {
     fn make_interested() -> (Message, Bytes) {
         (
             Message::Interested,
-            make_empty_msg_encoded_payload(MessageId::Interested),
+            make_empty_msg_encoded_payload(
+                MessageId::Interested,
+            ),
         )
     }
 
@@ -571,13 +677,17 @@ mod tests {
     fn make_not_interested() -> (Message, Bytes) {
         (
             Message::NotInterested,
-            make_empty_msg_encoded_payload(MessageId::NotInterested),
+            make_empty_msg_encoded_payload(
+                MessageId::NotInterested,
+            ),
         )
     }
 
     /// Helper used to create 'choke', 'unchoke', 'interested', and 'not
     /// interested' encoded messages that all have the same format.
-    fn make_empty_msg_encoded_payload(id: MessageId) -> Bytes {
+    fn make_empty_msg_encoded_payload(
+        id: MessageId,
+    ) -> Bytes {
         // 1 byte message id
         let msg_len = 1;
         // 4 byte message length prefix and message length
@@ -590,7 +700,9 @@ mod tests {
 
     /// Returns `Bitfield` and its expected encoded variant.
     fn make_bitfield() -> (Message, Bytes) {
-        let bitfield = Bitfield::from_vec(vec![0b11001001, 0b10000011, 0b11111011]);
+        let bitfield = Bitfield::from_vec(vec![
+            0b11001001, 0b10000011, 0b11111011,
+        ]);
         let encoded = {
             // 1 byte message id and n byte f bitfield
             //
@@ -598,10 +710,13 @@ mod tests {
             let msg_len = 1 + bitfield.len() / 8;
             // 4 byte message length prefix and message length
             let buf_len = 4 + msg_len;
-            let mut buf = BytesMut::with_capacity(buf_len);
+            let mut buf =
+                BytesMut::with_capacity(buf_len);
             buf.put_u32(msg_len as u32);
             buf.put_u8(MessageId::Bitfield as u8);
-            buf.extend_from_slice(bitfield.as_raw_slice());
+            buf.extend_from_slice(
+                bitfield.as_raw_slice(),
+            );
             buf
         };
         let msg = Message::Bitfield(bitfield);
@@ -617,11 +732,14 @@ mod tests {
             let msg_len = 1 + 4;
             // 4 byte message length prefix and message length
             let buf_len = 4 + msg_len;
-            let mut buf = BytesMut::with_capacity(buf_len);
+            let mut buf =
+                BytesMut::with_capacity(buf_len);
             buf.put_u32(msg_len as u32);
             buf.put_u8(MessageId::Have as u8);
             // ok to unwrap, only used in tests
-            buf.put_u32(piece_index.try_into().unwrap());
+            buf.put_u32(
+                piece_index.try_into().unwrap(),
+            );
             buf
         };
         (msg, encoded.into())
@@ -638,7 +756,12 @@ mod tests {
             len,
         });
         let encoded =
-            make_block_info_encoded_msg_payload(MessageId::Request, piece_index, offset, len);
+            make_block_info_encoded_msg_payload(
+                MessageId::Request,
+                piece_index,
+                offset,
+                len,
+            );
         (msg, encoded)
     }
 
@@ -654,11 +777,14 @@ mod tests {
             let msg_len = 1 + 4 + 4 + data.len();
             // 4 byte message length prefix and message length
             let buf_len = 4 + msg_len;
-            let mut buf = BytesMut::with_capacity(buf_len);
+            let mut buf =
+                BytesMut::with_capacity(buf_len);
             buf.put_u32(msg_len as u32);
             buf.put_u8(MessageId::Block as u8);
             // ok to unwrap, only used in tests
-            buf.put_u32(piece_index.try_into().unwrap());
+            buf.put_u32(
+                piece_index.try_into().unwrap(),
+            );
             buf.put_u32(offset);
             buf.extend_from_slice(&data);
             buf
@@ -682,7 +808,12 @@ mod tests {
             len,
         });
         let encoded =
-            make_block_info_encoded_msg_payload(MessageId::Cancel, piece_index, offset, len);
+            make_block_info_encoded_msg_payload(
+                MessageId::Cancel,
+                piece_index,
+                offset,
+                len,
+            );
         (msg, encoded)
     }
 

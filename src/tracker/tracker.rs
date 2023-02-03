@@ -23,17 +23,26 @@ impl Tracker {
     ///
     /// This may be used by a torrent to request peers to download form.
     /// And report the current status information to the the tracker.
-    pub async fn announce(&self, params: Announce) -> Result<Response> {
+    pub async fn announce(
+        &self,
+        params: Announce,
+    ) -> Result<Response> {
         let mut query = vec![
             ("port", params.port.to_string()),
-            ("downloaded", params.downloaded.to_string()),
+            (
+                "downloaded",
+                params.downloaded.to_string(),
+            ),
             ("uploaded", params.uploaded.to_string()),
             ("left", params.left.to_string()),
             ("compact", "1".to_string()),
         ];
 
         if let Some(peer_count) = params.peer_count {
-            query.push(("numwant", peer_count.to_string()));
+            query.push((
+                "numwant",
+                peer_count.to_string(),
+            ));
         }
         if let Some(ip) = &params.ip {
             query.push(("ip", ip.to_string()));
@@ -44,8 +53,15 @@ impl Tracker {
             ?info_hash={info_hash}\
             &peer_id={peer_id}",
             url = self.url,
-            info_hash = percent_encoding::percent_encode(&params.info_hash, URL_ENCODE_RESERVED),
-            peer_id = percent_encoding::percent_encode(&params.peer_id, URL_ENCODE_RESERVED)
+            info_hash =
+                percent_encoding::percent_encode(
+                    &params.info_hash,
+                    URL_ENCODE_RESERVED
+                ),
+            peer_id = percent_encoding::percent_encode(
+                &params.peer_id,
+                URL_ENCODE_RESERVED
+            )
         );
 
         let resp = self

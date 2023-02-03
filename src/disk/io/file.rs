@@ -13,7 +13,10 @@ pub struct TorrentFile {
 impl TorrentFile {
     /// Opens the file in create, read, and write modes at the path of
     /// combining download directory and the path defined in the file info.
-    pub fn new(download_dir: &Path, info: FileInfo) -> Result<Self, NewTorrentError> {
+    pub fn new(
+        download_dir: &Path,
+        info: FileInfo,
+    ) -> Result<Self, NewTorrentError> {
         log::trace!(
             "Opening and creating file {:?}, in dir {:?}",
             info,
@@ -27,7 +30,10 @@ impl TorrentFile {
             .read(true)
             .open(&path)
             .map_err(|e| {
-                log::warn!("Failed to open file {:?}", path);
+                log::warn!(
+                    "Failed to open file {:?}",
+                    path
+                );
                 NewTorrentError::Io(e)
             })?;
 

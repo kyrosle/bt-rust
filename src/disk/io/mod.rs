@@ -44,7 +44,9 @@ mod tests {
         let mut file = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("TorrentFile_write_block.test"),
+                path: PathBuf::from(
+                    "TorrentFile_write_block.test",
+                ),
                 torrent_offset: 0,
                 len: piece.len as u64,
             },
@@ -52,23 +54,38 @@ mod tests {
         .expect("cannot create test file");
 
         // write buffers
-        let file_slice = file.info.get_slice(0, piece.len as u64);
-        let mut iovecs: Vec<IoVec> = piece.blocks.values().map(|b| IoVec::new(b)).collect();
+        let file_slice =
+            file.info.get_slice(0, piece.len as u64);
+        let mut iovecs: Vec<IoVec> = piece
+            .blocks
+            .values()
+            .map(|b| IoVec::new(b))
+            .collect();
         // println!("{:?}", iovecs);
         let tail = file
             .write(file_slice, &mut iovecs)
             .expect("cannot write piece to file");
-        assert!(tail.is_empty(), "not all blocks were written to disk");
+        assert!(
+            tail.is_empty(),
+            "not all blocks were written to disk"
+        );
 
         // read and compare
         let mut file_content = Vec::new();
-        file.handle.seek(std::io::SeekFrom::Start(0)).unwrap();
+        file.handle
+            .seek(std::io::SeekFrom::Start(0))
+            .unwrap();
         file.handle
             .read_to_end(&mut file_content)
             .expect("cannot read test file");
         assert_eq!(
             file_content,
-            piece.blocks.values().flatten().cloned().collect::<Vec<_>>(),
+            piece
+                .blocks
+                .values()
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>(),
             "file content does not equal piece"
         );
 
@@ -82,18 +99,21 @@ mod tests {
         let file_range = 0..1;
         let piece = make_piece(file_range);
         let binding = tempdir().unwrap();
-        let dir: &str = binding.path().to_str().unwrap();
+        let dir: &str =
+            binding.path().to_str().unwrap();
         let download_dir = Path::new(dir);
         let file = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_single_file.test"),
+                path: PathBuf::from(
+                    "Piece_write_single_file.test",
+                ),
                 torrent_offset: 0,
                 len: 2 * piece.len as u64,
             },
         )
         .expect("cannot create test file");
-        let files = &[sync::Mutex::new(file)];
+        let files = &[sync::RwLock::new(file)];
 
         // piece starts at the beginning of files
         let torrent_piece_offset = 0;
@@ -102,15 +122,22 @@ mod tests {
             .expect("cannot write piece to file");
 
         // compare file content to piece
-        let mut file = files[0].lock().unwrap();
+        let mut file = files[0].write().unwrap();
         let mut file_content = Vec::new();
-        file.handle.seek(std::io::SeekFrom::Start(0)).unwrap();
+        file.handle
+            .seek(std::io::SeekFrom::Start(0))
+            .unwrap();
         file.handle
             .read_to_end(&mut file_content)
             .expect("cannot read test file");
         assert_eq!(
             file_content,
-            piece.blocks.values().flatten().cloned().collect::<Vec<_>>(),
+            piece
+                .blocks
+                .values()
+                .flatten()
+                .cloned()
+                .collect::<Vec<_>>(),
             "file {:?} content does not equal piece",
             file.info
         );
@@ -124,7 +151,8 @@ mod tests {
         let file_range = 0..1;
         let piece = make_piece(file_range.clone());
         let binding = tempdir().unwrap();
-        let dir: &str = binding.path().to_str().unwrap();
+        let dir: &str =
+            binding.path().to_str().unwrap();
         let download_dir = Path::new(dir);
         let file = TorrentFile::new(
             download_dir,
@@ -135,12 +163,20 @@ mod tests {
             },
         )
         .expect("cannot create test file");
-        let files = &[sync::Mutex::new(file)];
+        let files = &[sync::RwLock::new(file)];
 
         // reading piece from empty file should result in error
         let torrent_piece_offset = 0;
-        let result = piece::read(torrent_piece_offset, file_range, files, piece.len);
-        assert!(matches!(result, Err(ReadError::MissingData)));
+        let result = piece::read(
+            torrent_piece_offset,
+            file_range,
+            files,
+            piece.len,
+        );
+        assert!(matches!(
+            result,
+            Err(ReadError::MissingData)
+        ));
 
         // clean up env
         // fs::remove_file(download_dir.join(&files[0].lock().unwrap().info.path))
@@ -159,13 +195,15 @@ mod tests {
         let file = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_read_single_file.test"),
+                path: PathBuf::from(
+                    "Piece_read_single_file.test",
+                ),
                 torrent_offset: 0,
                 len: 2 * piece.len as u64,
             },
         )
         .expect("cannot create test file");
-        let files = &[sync::Mutex::new(file)];
+        let files = &[sync::RwLock::new(file)];
 
         let torrent_piece_offset = 0;
         piece
@@ -174,14 +212,28 @@ mod tests {
 
         // read piece as list of blocks
         println!("params files count");
-        let blocks = piece::read(torrent_piece_offset, file_range, files, piece.len)
-            .expect("cannot read piece from file");
+        let blocks = piece::read(
+            torrent_piece_offset,
+            file_range,
+            files,
+            piece.len,
+        )
+        .expect("cannot read piece from file");
 
         println!("Trick in mod test: {:?}", blocks);
         // compare contents
         // map Vec<Arc<Vec<u8>>> to Vec<Vec<u8>>
-        let actual: Vec<_> = blocks.iter().flat_map(AsRef::as_ref).cloned().collect();
-        let expected: Vec<_> = piece.blocks.values().flatten().copied().collect();
+        let actual: Vec<_> = blocks
+            .iter()
+            .flat_map(AsRef::as_ref)
+            .cloned()
+            .collect();
+        let expected: Vec<_> = piece
+            .blocks
+            .values()
+            .flatten()
+            .copied()
+            .collect();
         assert_eq!(actual, expected);
 
         // clean up env
@@ -197,12 +249,15 @@ mod tests {
         let file_range = 0..3;
         let piece = make_piece(file_range);
         let binding = tempdir().unwrap();
-        let dir: &str = binding.path().to_str().unwrap();
+        let dir: &str =
+            binding.path().to_str().unwrap();
         let download_dir = Path::new(dir);
         let file1 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files1.test"),
+                path: PathBuf::from(
+                    "Piece_write_files1.test",
+                ),
                 torrent_offset: 0,
                 len: BLOCK_LEN as u64 + 3,
             },
@@ -211,7 +266,9 @@ mod tests {
         let file2 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files2.test"),
+                path: PathBuf::from(
+                    "Piece_write_files2.test",
+                ),
                 torrent_offset: file1.info.len,
                 len: BLOCK_LEN as u64 - 1500,
             },
@@ -220,16 +277,23 @@ mod tests {
         let file3 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files3.test"),
-                torrent_offset: file2.info.torrent_offset + file2.info.len,
-                len: piece.len as u64 - (file1.info.len + file2.info.len),
+                path: PathBuf::from(
+                    "Piece_write_files3.test",
+                ),
+                torrent_offset: file2
+                    .info
+                    .torrent_offset
+                    + file2.info.len,
+                len: piece.len as u64
+                    - (file1.info.len
+                        + file2.info.len),
             },
         )
         .expect("cannot create test file 3");
         let files = &[
-            sync::Mutex::new(file1),
-            sync::Mutex::new(file2),
-            sync::Mutex::new(file3),
+            sync::RwLock::new(file1),
+            sync::RwLock::new(file2),
+            sync::RwLock::new(file3),
         ];
 
         // piece starts at the beginning of files
@@ -240,10 +304,12 @@ mod tests {
 
         // compare contents of files to piece
         for file in files.iter() {
-            let mut file = file.lock().unwrap();
+            let mut file = file.write().unwrap();
             let mut file_content = Vec::new();
 
-            file.handle.seek(std::io::SeekFrom::Start(0)).unwrap();
+            file.handle
+                .seek(std::io::SeekFrom::Start(0))
+                .unwrap();
             file.handle
                 .read_to_end(&mut file_content)
                 .expect("cannot read test file");
@@ -283,7 +349,9 @@ mod tests {
         let file1 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files1.test"),
+                path: PathBuf::from(
+                    "Piece_write_files1.test",
+                ),
                 torrent_offset: 0,
                 len: BLOCK_LEN as u64 + 3,
             },
@@ -292,7 +360,9 @@ mod tests {
         let file2 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files2.test"),
+                path: PathBuf::from(
+                    "Piece_write_files2.test",
+                ),
                 torrent_offset: file1.info.len,
                 len: BLOCK_LEN as u64 - 1500,
             },
@@ -301,16 +371,23 @@ mod tests {
         let file3 = TorrentFile::new(
             download_dir,
             FileInfo {
-                path: PathBuf::from("Piece_write_files3.test"),
-                torrent_offset: file2.info.torrent_offset + file2.info.len,
-                len: piece.len as u64 - (file1.info.len + file2.info.len),
+                path: PathBuf::from(
+                    "Piece_write_files3.test",
+                ),
+                torrent_offset: file2
+                    .info
+                    .torrent_offset
+                    + file2.info.len,
+                len: piece.len as u64
+                    - (file1.info.len
+                        + file2.info.len),
             },
         )
         .expect("cannot create test file 3");
         let files = &[
-            sync::Mutex::new(file1),
-            sync::Mutex::new(file2),
-            sync::Mutex::new(file3),
+            sync::RwLock::new(file1),
+            sync::RwLock::new(file2),
+            sync::RwLock::new(file3),
         ];
 
         // piece starts at the beginning of files
@@ -320,15 +397,29 @@ mod tests {
             .expect("cannot write piece to file");
 
         // read piece as list of blocks
-        let blocks = piece::read(torrent_piece_offset, file_range, files, piece.len)
-            .expect("cannot read piece from files");
+        let blocks = piece::read(
+            torrent_piece_offset,
+            file_range,
+            files,
+            piece.len,
+        )
+        .expect("cannot read piece from files");
 
         // println!("blocks: {:?}", blocks);
 
         // compare contents
         // map Vec<Arc<Vec<u8>>> to Vec<Vec<u8>>
-        let actual: Vec<_> = blocks.iter().flat_map(AsRef::as_ref).cloned().collect();
-        let expected: Vec<_> = piece.blocks.values().flatten().copied().collect();
+        let actual: Vec<_> = blocks
+            .iter()
+            .flat_map(AsRef::as_ref)
+            .cloned()
+            .collect();
+        let expected: Vec<_> = piece
+            .blocks
+            .values()
+            .flatten()
+            .copied()
+            .collect();
         assert_eq!(actual, expected);
     }
 
@@ -361,15 +452,15 @@ mod tests {
         };
         let len = blocks.len() as u32 * BLOCK_LEN;
         // convert blocks to a b-tree map
-        let (blocks, _) =
-            blocks
-                .into_iter()
-                .fold((BTreeMap::new(), 0u32), |(mut map, mut offset), block| {
-                    let block_len = block.len();
-                    map.insert(offset, block);
-                    offset += block_len as u32;
-                    (map, offset)
-                });
+        let (blocks, _) = blocks.into_iter().fold(
+            (BTreeMap::new(), 0u32),
+            |(mut map, mut offset), block| {
+                let block_len = block.len();
+                map.insert(offset, block);
+                offset += block_len as u32;
+                (map, offset)
+            },
+        );
         Piece {
             expected_hash,
             len,

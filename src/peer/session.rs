@@ -1,6 +1,9 @@
 use std::time::{Duration, Instant};
 
-use crate::{avg::SlidingDurationAvg, counter::ThruputCounters, BLOCK_LEN};
+use crate::{
+    avg::SlidingDurationAvg, counter::ThruputCounters,
+    BLOCK_LEN,
+};
 
 /// Contains the state of both sides of the connection.
 #[derive(Debug, Clone, Copy)]
@@ -162,12 +165,14 @@ impl SessionContext {
     /// an average round-trip-times, so a slight deviation would punish them
     /// unnecessarily. Therefore we use a somewhat larger minimum threshold
     /// for timeouts.
-    const MIN_TIMEOUT: Duration = Duration::from_secs(2);
+    const MIN_TIMEOUT: Duration =
+        Duration::from_secs(2);
 
     /// Returns the current request timeout value, based on the running average
     /// of past request round-trip-time.
     pub fn request_timeout(&self) -> Duration {
-        let t = self.avg_request_rtt.mean() + 4 * self.avg_request_rtt.deviation();
+        let t = self.avg_request_rtt.mean()
+            + 4 * self.avg_request_rtt.deviation();
 
         t.max(Self::MIN_TIMEOUT)
     }
@@ -194,18 +199,25 @@ impl SessionContext {
         self.in_slow_start = true;
         // reset the target_request_queue_size, which will be adjusted as the
         // download progresses.
-        self.target_request_queue_len = Some(Self::START_REQUEST_QUEUE_LEN);
+        self.target_request_queue_len =
+            Some(Self::START_REQUEST_QUEUE_LEN);
     }
 
     /// Convenience method to set any field in state and to set the [`Self::changed`] flag.
     #[inline(always)]
-    pub fn update_state(&mut self, f: impl FnOnce(&mut SessionState)) {
+    pub fn update_state(
+        &mut self,
+        f: impl FnOnce(&mut SessionState),
+    ) {
         f(&mut self.state);
         self.changed = true;
     }
 
     /// Convenience method to update connection state and to set the [`Self::changed`] flag.
-    pub fn set_connection_state(&mut self, c: ConnectionState) {
+    pub fn set_connection_state(
+        &mut self,
+        c: ConnectionState,
+    ) {
         self.state.connection = c;
         self.changed = true;
     }
@@ -213,28 +225,39 @@ impl SessionContext {
     /// Updates various statistics around a block download.
     ///
     /// This should be called every time a block is received.
-    pub fn update_download_stats(&mut self, block_len: u32) {
+    pub fn update_download_stats(
+        &mut self,
+        block_len: u32,
+    ) {
         let now = Instant::now();
 
         // update request time.
-        if let Some(last_outgoing_request_time) = &mut self.last_outgoing_request_time {
+        if let Some(last_outgoing_request_time) =
+            &mut self.last_outgoing_request_time
+        {
             // Due to what is presumed to be inconsistencies with the
             // `Instant::new()` API, it happens in rare circumstances that using
             // the regular when `duration_since` here panics(#48).
             // Suspected that this happens when requests are made a very short interval
             // before this function is called, which is likely in very fast downloads.
             // Either way, we guard against this by defaulting to 0.
-            let elapsed_since_last_request =
-                now.saturating_duration_since(*last_outgoing_request_time);
+            let elapsed_since_last_request = now
+                .saturating_duration_since(
+                    *last_outgoing_request_time,
+                );
 
             // If we timed out before, check if this request arrived within the timeout
             // window, or outside of it. If it arrived within the
             // window, we can mark peer as having recovered from the timeout.
-            if self.request_time_out && elapsed_since_last_request <= self.request_timeout() {
+            if self.request_time_out
+                && elapsed_since_last_request
+                    <= self.request_timeout()
+            {
                 self.request_time_out = false;
             }
 
-            let request_rtt = elapsed_since_last_request;
+            let request_rtt =
+                elapsed_since_last_request;
             self.avg_request_rtt.update(request_rtt);
         }
 
@@ -244,7 +267,9 @@ impl SessionContext {
         // if we're in slow-start mode, we need to increase the target_queue_size
         // every time a block is received.
         if self.in_slow_start {
-            if let Some(target_request_queue_len) = &mut self.target_request_queue_len {
+            if let Some(target_request_queue_len) =
+                &mut self.target_request_queue_len
+            {
                 *target_request_queue_len += 1;
             }
         }
@@ -257,8 +282,12 @@ impl SessionContext {
         self.changed = true;
     }
 
-    pub fn update_upload_stats(&mut self, block_len: u32) {
-        self.last_outgoing_block_time = Some(Instant::now());
+    pub fn update_upload_stats(
+        &mut self,
+        block_len: u32,
+    ) {
+        self.last_outgoing_block_time =
+            Some(Instant::now());
         self.counters.payload.up += block_len as u64;
 
         self.changed = true;
@@ -296,7 +325,8 @@ impl SessionContext {
             && self.in_slow_start
             && self.target_request_queue_len.is_some()
             && self.counters.payload.down.round() > 0
-            && self.counters.payload.down.round() + Self::SLOW_START_ERROR_MARGINS
+            && self.counters.payload.down.round()
+                + Self::SLOW_START_ERROR_MARGINS
                 < self.counters.payload.down.avg()
         {
             self.in_slow_start = false;
@@ -305,23 +335,32 @@ impl SessionContext {
 
     /// Adjust the target request queue size  based on the current download statistics.
     fn update_target_request_queue_len(&mut self) {
-        if let Some(target_request_queue_len) = &mut self.target_request_queue_len {
-            let prev_queue_len = *target_request_queue_len;
+        if let Some(target_request_queue_len) =
+            &mut self.target_request_queue_len
+        {
+            let prev_queue_len =
+                *target_request_queue_len;
 
             // this is only applicable if we're not in slow start, as in slow
             // start mode the request queue is increased with each incoming block.
             if !self.in_slow_start {
-                let download_rate = self.counters.payload.down.avg();
+                let download_rate =
+                    self.counters.payload.down.avg();
 
                 *target_request_queue_len =
-                    ((download_rate + (BLOCK_LEN - 1) as u64) / BLOCK_LEN as u64) as usize;
+                    ((download_rate
+                        + (BLOCK_LEN - 1) as u64)
+                        / BLOCK_LEN as u64)
+                        as usize;
             }
 
             if *target_request_queue_len < 1 {
                 *target_request_queue_len = 1;
             }
 
-            if prev_queue_len != *target_request_queue_len {
+            if prev_queue_len
+                != *target_request_queue_len
+            {
                 log::info!(
                     "Request queue changed from {} to {}",
                     prev_queue_len,
@@ -359,7 +398,8 @@ mod tests {
         s.target_request_queue_len = Some(1);
 
         // rate increasing
-        s.counters.payload.down += 10 * BLOCK_LEN as u64;
+        s.counters.payload.down +=
+            10 * BLOCK_LEN as u64;
         // should not exit slow start
         s.maybe_exit_slow_start();
         assert!(s.in_slow_start);
@@ -370,7 +410,8 @@ mod tests {
         s.counters.payload.down.reset();
 
         // rate still increasing
-        s.counters.payload.down += 10 * BLOCK_LEN as u64;
+        s.counters.payload.down +=
+            10 * BLOCK_LEN as u64;
         // should not exit slow start yet
         s.maybe_exit_slow_start();
         assert!(s.in_slow_start);
@@ -384,13 +425,15 @@ mod tests {
 
         // this round's increase is much less than that of the previous round,
         // should exit slow start
-        s.counters.payload.down += 2 * BLOCK_LEN as u64 + 9000;
+        s.counters.payload.down +=
+            2 * BLOCK_LEN as u64 + 9000;
         s.maybe_exit_slow_start();
         assert!(!s.in_slow_start);
     }
 
     #[test]
-    fn should_not_update_target_request_queue_in_slow_start() {
+    fn should_not_update_target_request_queue_in_slow_start(
+    ) {
         let mut s = SessionContext::default();
 
         s.state.is_interested = true;
@@ -399,14 +442,18 @@ mod tests {
         s.target_request_queue_len = Some(1);
 
         // rate increasing
-        s.counters.payload.down += 2 * BLOCK_LEN as u64;
+        s.counters.payload.down +=
+            2 * BLOCK_LEN as u64;
 
         // reset counter for next round
         s.counters.payload.down.reset();
 
         // this should be a noop
         s.update_target_request_queue_len();
-        assert_eq!(s.target_request_queue_len, Some(1));
+        assert_eq!(
+            s.target_request_queue_len,
+            Some(1)
+        );
     }
 
     #[test]
@@ -420,7 +467,8 @@ mod tests {
 
         // rate increasing (make it more than a multiple of the block
         // length to be able to test against integer truncation)
-        s.counters.payload.down += 10 * BLOCK_LEN as u64 + 5000;
+        s.counters.payload.down +=
+            10 * BLOCK_LEN as u64 + 5000;
         // reset counter so that it may be used in the download rate below
         s.counters.payload.down.reset();
 
@@ -433,7 +481,10 @@ mod tests {
         // ```
         // (33768 + (16384 - 1)) / 16384 = 3.06 ~ 3
         s.update_target_request_queue_len();
-        assert_eq!(s.target_request_queue_len, Some(3));
+        assert_eq!(
+            s.target_request_queue_len,
+            Some(3)
+        );
     }
 
     #[test]
@@ -448,10 +499,16 @@ mod tests {
         s.update_download_stats(BLOCK_LEN);
 
         // request queue length should be increased by one in slow start
-        assert_eq!(s.target_request_queue_len, Some(2));
+        assert_eq!(
+            s.target_request_queue_len,
+            Some(2)
+        );
         // incoming request time should be set
         assert!(s.last_incoming_block_time.is_some());
         // download stat should be increased
-        assert_eq!(s.counters.payload.down.round(), BLOCK_LEN as u64);
+        assert_eq!(
+            s.counters.payload.down.round(),
+            BLOCK_LEN as u64
+        );
     }
 }

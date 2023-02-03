@@ -5,6 +5,7 @@
         "bitvec",
         "blockinfo",
         "bufs",
+        "curr",
         "hasher",
         "iovec",
         "iovecs",
@@ -15,10 +16,12 @@
         "repr",
         "reqwest",
         "SHALEN",
+        "subdir",
         "tempdir",
         "tempfile",
         "thiserror",
         "Unchoke",
-        "unchoked"
+        "unchoked",
+        "Unchoking"
     ]
 }

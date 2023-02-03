@@ -22,7 +22,10 @@ fn main() {
 
     let mut c = bytes[2].clone();
 
-    let mut iovecs = bytes.iter_mut().map(|b| IoVec::new(b)).collect::<Vec<_>>();
+    let mut iovecs = bytes
+        .iter_mut()
+        .map(|b| IoVec::new(b))
+        .collect::<Vec<_>>();
 
     // println!("{:#?}", iovecs);
 

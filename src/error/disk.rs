@@ -1,6 +1,7 @@
 use crate::error::Error;
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+pub type Result<T, E = Error> =
+    std::result::Result<T, E>;
 
 /// Error type returned on failed torrent allocations.
 ///

@@ -24,11 +24,14 @@ pub mod prelude {
 }
 
 /// Deserialize an integer representing seconds into `Duration`.
-pub fn deserialize_seconds<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
+pub fn deserialize_seconds<'de, D>(
+    deserializer: D,
+) -> Result<Option<Duration>, D::Error>
 where
     D: de::Deserializer<'de>,
 {
-    let s: Option<u64> = de::Deserialize::deserialize(deserializer)?;
+    let s: Option<u64> =
+        de::Deserialize::deserialize(deserializer)?;
     Ok(s.map(Duration::from_secs))
 }
 
@@ -41,7 +44,9 @@ where
 /// Cos of most of trackers send the compact response by default,
 /// and here we do not use the peer id in the stage of
 /// receiving a peer list from the tracker, so discarding is available.
-pub fn deserialize_peers<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
+pub fn deserialize_peers<'de, D>(
+    deserializer: D,
+) -> Result<Vec<SocketAddr>, D::Error>
 where
     D: de::Deserializer<'de>,
 {
@@ -49,7 +54,10 @@ where
 
     impl<'de> de::Visitor<'de> for Visitor {
         type Value = Vec<SocketAddr>;
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fn expecting(
+            &self,
+            formatter: &mut std::fmt::Formatter,
+        ) -> std::fmt::Result {
             formatter.write_str("a string or list of dicts representing peer")
         }
 
@@ -59,7 +67,10 @@ where
         /// and then the last 2 bytes are the Port.
         ///
         /// Both are in network byte order.
-        fn visit_bytes<E>(self, mut b: &[u8]) -> Result<Self::Value, E>
+        fn visit_bytes<E>(
+            self,
+            mut b: &[u8],
+        ) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
@@ -74,19 +85,27 @@ where
                 .map_err(E::custom);
             }
 
-            let mut peers = Vec::with_capacity(buf_len / ENTRY_LEN);
+            let mut peers = Vec::with_capacity(
+                buf_len / ENTRY_LEN,
+            );
 
             for _ in (0..buf_len).step_by(ENTRY_LEN) {
                 let addr = Ipv4Addr::from(b.get_u32());
                 let port = b.get_u16();
-                let peer = SocketAddr::new(IpAddr::V4(addr), port);
+                let peer = SocketAddr::new(
+                    IpAddr::V4(addr),
+                    port,
+                );
                 peers.push(peer);
             }
             Ok(peers)
         }
 
         /// Deserializes a list of dicts containing the peer information.
-        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        fn visit_seq<A>(
+            self,
+            mut seq: A,
+        ) -> Result<Self::Value, A::Error>
         where
             A: de::SeqAccess<'de>,
         {
@@ -95,8 +114,12 @@ where
                 ip: String,
                 port: u16,
             }
-            let mut peers = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-            while let Some(RawPeer { ip, port }) = seq.next_element()? {
+            let mut peers = Vec::with_capacity(
+                seq.size_hint().unwrap_or(0),
+            );
+            while let Some(RawPeer { ip, port }) =
+                seq.next_element()?
+            {
                 let ip = if let Ok(ip) = ip.parse() {
                     ip
                 } else {
@@ -114,8 +137,9 @@ where
 
 /// Contains the characters that need to be URL encoded according to:
 /// https://en.wikipedia.org/wiki/Percent-encoding#Types_of_URI_characters
-const URL_ENCODE_RESERVED: &AsciiSet = &NON_ALPHANUMERIC
-    .remove(b'-')
-    .remove(b'_')
-    .remove(b'~')
-    .remove(b'.');
+const URL_ENCODE_RESERVED: &AsciiSet =
+    &NON_ALPHANUMERIC
+        .remove(b'-')
+        .remove(b'_')
+        .remove(b'~')
+        .remove(b'.');

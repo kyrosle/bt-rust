@@ -1,5 +1,14 @@
-pub use tokio::{io::Error as IoError, sync::mpsc::error::SendError};
+pub use tokio::{
+    io::Error as IoError, sync::mpsc::error::SendError,
+};
 
+pub type Result<T, E = PeerError> =
+    std::result::Result<T, E>;
+
+/// Error type returned on failed peer sessions.
+///
+/// This error is non-fatal so it should not be grouped with the global `Error`
+/// type as it may be recovered from.
 #[derive(Debug, thiserror::Error)]
 pub enum PeerError {
     #[error("received unexpected bitfield")]

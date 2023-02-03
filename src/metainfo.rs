@@ -30,7 +30,10 @@ pub struct Metainfo {
 }
 
 impl fmt::Debug for Metainfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
         f.debug_struct("Metainfo")
             .field("name", &self.name)
             .field("info_hash", &self.info_hash)
@@ -53,12 +56,15 @@ impl Metainfo {
     /// - If having multi files, the `files` should not be empty.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // parse the file and then do verification.
-        let metainfo: raw::Metainfo = serde_bencode::from_bytes(bytes)?;
+        let metainfo: raw::Metainfo =
+            serde_bencode::from_bytes(bytes)?;
 
         // the pieces field is a concatenation of 20 byte SHA-1 hashes, so it
         // must be a multiple of 20
         if metainfo.info.pieces.len() % 20 != 0 {
-            return Err(MetainfoError::InvalidMetainfo);
+            return Err(
+                MetainfoError::InvalidMetainfo,
+            );
         }
 
         // verify download structure and build up files metadata
@@ -66,23 +72,37 @@ impl Metainfo {
         if let Some(len) = metainfo.info.len {
             if metainfo.info.files.is_some() {
                 log::warn!("Metainfo cannot contain both `length` and `files`");
-                return Err(MetainfoError::InvalidMetainfo);
+                return Err(
+                    MetainfoError::InvalidMetainfo,
+                );
             }
             if len == 0 {
                 log::warn!("File length is 0");
-                return Err(MetainfoError::InvalidMetainfo);
+                return Err(
+                    MetainfoError::InvalidMetainfo,
+                );
             }
 
             // the path of this file is just the torrent name
             files.push(FileInfo {
-                path: metainfo.info.name.clone().into(),
+                path: metainfo
+                    .info
+                    .name
+                    .clone()
+                    .into(),
                 len,
                 torrent_offset: 0,
             });
-        } else if let Some(raw_files) = &metainfo.info.files {
+        } else if let Some(raw_files) =
+            &metainfo.info.files
+        {
             if raw_files.is_empty() {
-                log::warn!("Metainfo files must not be empty");
-                return Err(MetainfoError::InvalidMetainfo);
+                log::warn!(
+                    "Metainfo files must not be empty"
+                );
+                return Err(
+                    MetainfoError::InvalidMetainfo,
+                );
             }
 
             files.reserve_exact(raw_files.len());
@@ -92,27 +112,51 @@ impl Metainfo {
             for file in raw_files.iter() {
                 // verify the file length is non-zero
                 if file.len == 0 {
-                    log::warn!("File {:?} length is 0", file.path);
-                    return Err(MetainfoError::InvalidMetainfo.into());
+                    log::warn!(
+                        "File {:?} length is 0",
+                        file.path
+                    );
+                    return Err(
+                        MetainfoError::InvalidMetainfo
+                            .into(),
+                    );
                 }
 
                 // verify that the path is not empty
-                let path: PathBuf = file.path.iter().collect();
+                let path: PathBuf =
+                    file.path.iter().collect();
                 if path.as_os_str().is_empty() {
-                    log::warn!("Path in metainfo is empty");
-                    return Err(MetainfoError::InvalidMetainfo.into());
+                    log::warn!(
+                        "Path in metainfo is empty"
+                    );
+                    return Err(
+                        MetainfoError::InvalidMetainfo
+                            .into(),
+                    );
                 }
 
                 // verify that the path is not absolute
                 if path.is_absolute() {
-                    log::warn!("Path {:?} is absolute", path);
-                    return Err(MetainfoError::InvalidMetainfo.into());
+                    log::warn!(
+                        "Path {:?} is absolute",
+                        path
+                    );
+                    return Err(
+                        MetainfoError::InvalidMetainfo
+                            .into(),
+                    );
                 }
 
                 // verify that the path is not the root
                 if path == Path::new("/") {
-                    log::warn!("Path {:?} is root", path);
-                    return Err(MetainfoError::InvalidMetainfo.into());
+                    log::warn!(
+                        "Path {:?} is root",
+                        path
+                    );
+                    return Err(
+                        MetainfoError::InvalidMetainfo
+                            .into(),
+                    );
                 }
 
                 // file is now verified, we can collect it
@@ -127,7 +171,9 @@ impl Metainfo {
             }
         } else {
             log::warn!("No `length` or `files` key present in metainfo");
-            return Err(MetainfoError::InvalidMetainfo.into());
+            return Err(
+                MetainfoError::InvalidMetainfo.into(),
+            );
         }
 
         let mut trackers = Vec::new();
@@ -137,22 +183,34 @@ impl Metainfo {
                 .iter()
                 .map(|t| t.len())
                 .sum::<usize>()
-                + metainfo.announce.as_ref().map(|_| 1).unwrap_or_default();
+                + metainfo
+                    .announce
+                    .as_ref()
+                    .map(|_| 1)
+                    .unwrap_or_default();
             trackers.reserve(tracker_count);
 
-            for announce in metainfo.announce_list.iter() {
+            for announce in
+                metainfo.announce_list.iter()
+            {
                 for tracker in announce.iter() {
                     let url = Url::parse(tracker)?;
 
                     // may use UDP ???
-                    if url.scheme() == "http" || url.scheme() == "https" {
+                    if url.scheme() == "http"
+                        || url.scheme() == "https"
+                    {
                         trackers.push(url);
                     }
                 }
             }
-        } else if let Some(tracker) = &metainfo.announce {
+        } else if let Some(tracker) =
+            &metainfo.announce
+        {
             let url = Url::parse(tracker)?;
-            if url.scheme() == "http" || url.scheme() == "https" {
+            if url.scheme() == "http"
+                || url.scheme() == "https"
+            {
                 trackers.push(url);
             }
         }
@@ -180,7 +238,7 @@ impl Metainfo {
     }
 
     /// Returns total download size in bytes.
-    /// 
+    ///
     /// Note that this is an O(n) operation for archive downloads, where
     /// n is the number of files, so the return value should ideally be cached.
     pub fn download_len(&self) -> u64 {
@@ -215,8 +273,11 @@ mod raw {
     }
 
     impl Metainfo {
-        pub fn crate_info_hash(&self) -> Result<Sha1Hash> {
-            let info = serde_bencode::to_bytes(&self.info)?;
+        pub fn crate_info_hash(
+            &self,
+        ) -> Result<Sha1Hash> {
+            let info =
+                serde_bencode::to_bytes(&self.info)?;
             let digest = sha1::Sha1::digest(&info);
             let mut info_hash = [0; 20];
             info_hash.copy_from_slice(&digest);

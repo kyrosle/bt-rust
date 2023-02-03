@@ -17,9 +17,14 @@
 //! - [latest downloaded pieces]
 //! - [peers]
 
-use tokio::sync::mpsc::{UnboundedSender, UnboundedReceiver};
+use tokio::sync::mpsc::{
+    UnboundedReceiver, UnboundedSender,
+};
 
-use crate::{error::Error, torrent::stats::TorrentStats, TorrentId};
+use crate::{
+    error::Error, torrent::stats::TorrentStats,
+    TorrentId,
+};
 
 pub type AlertSender = UnboundedSender<Alert>;
 /// The channel on which alerts from the engine can be received ([`Alert`])

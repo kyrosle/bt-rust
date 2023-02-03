@@ -1,5 +1,7 @@
 use std::{fmt, sync::atomic::AtomicU32};
 
+use crate::blockinfo::{BlockData, BlockInfo};
+
 /// A SHA-1 hash digest, 20 bytes long.
 pub type Sha1Hash = [u8; 20];
 
@@ -35,22 +37,72 @@ pub(crate) type FileIndex = usize;
 
 /// Each torrent gets a randomly assigned ID that is globally unique.
 /// This id used in engine APIs to interact with torrents.
-#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Hash)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Hash,
+)]
 pub struct TorrentId(u32);
 
 impl TorrentId {
     pub fn new() -> Self {
-        static TORRENT_ID: AtomicU32 = AtomicU32::new(0);
+        static TORRENT_ID: AtomicU32 =
+            AtomicU32::new(0);
 
         // the atomic is not synchronized data access around
         // it so relaxed ordering is fine for out purposes.
-        let id = TORRENT_ID.fetch_add(1, std::sync::atomic::Ordering::Release);
+        let id = TORRENT_ID.fetch_add(
+            1,
+            std::sync::atomic::Ordering::Release,
+        );
         TorrentId(id)
     }
 }
 
 impl fmt::Display for TorrentId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
         write!(f, "t#{}", self.0)
+    }
+}
+
+/// A piece block that contains the block's metadata and data.
+pub struct Block {
+    /// The index of the piece of which this is a block.
+    pub piece_index: PieceIndex,
+    /// The zero-based byte offset into the piece.
+    pub offset: u32,
+    /// The actual raw data of the block.
+    pub data: BlockData,
+}
+
+impl Block {
+    /// Constructs a new block based on the metadata and data.
+    pub fn new(
+        info: BlockInfo,
+        data: impl Into<BlockData>,
+    ) -> Self {
+        Block {
+            piece_index: info.piece_index,
+            offset: info.offset,
+            data: data.into(),
+        }
+    }
+
+    /// Returns a [`BlockInfo`] representing the metadata of this
+    /// block.
+    pub fn info(&self) -> BlockInfo {
+        BlockInfo {
+            piece_index: self.piece_index,
+            offset: self.offset,
+            len: self.data.len() as u32,
+        }
     }
 }

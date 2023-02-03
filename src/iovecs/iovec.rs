@@ -21,12 +21,17 @@ impl IoVec {
     pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
         &mut self.0
     }
-    pub fn modify<'a>(&mut self, value: &'a [u8]) -> Result<(), &'a [u8]> {
+    pub fn modify<'a>(
+        &mut self,
+        value: &'a [u8],
+    ) -> Result<(), &'a [u8]> {
         let self_len = self.0.len();
         let value_len = value.len();
 
         match self_len.cmp(&value_len) {
-            std::cmp::Ordering::Equal => self.0 = value.to_vec(),
+            std::cmp::Ordering::Equal => {
+                self.0 = value.to_vec()
+            }
             _ => return Err(value),
         }
 

@@ -4,7 +4,9 @@ use std::{
 };
 
 use crate::{
-    counter::{ChannelCounter, Counter, ThruputCounters},
+    counter::{
+        ChannelCounter, Counter, ThruputCounters,
+    },
     peer::session::SessionState,
     PeerId, PieceIndex,
 };
@@ -35,7 +37,16 @@ pub struct TorrentStats {
 }
 
 /// Statistics of a torrent's pieces.
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Ord, Eq, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    Default,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Eq,
+    Hash,
+)]
 pub struct PieceStats {
     /// The total number of pieces in torrent.
     pub total: usize,
@@ -109,7 +120,17 @@ pub struct PeerSessionsStats {
     pub thruput: ThruputStats,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+)]
 pub struct ThruputStats {
     /// Statistics about the protocol transfer rates in both directions.
     pub protocol: Channel,
@@ -132,7 +153,17 @@ impl From<&ThruputCounters> for ThruputStats {
 
 /// Aggregate statistics about a communication channel,
 /// e.g. protocol chatter or exchanged payload.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+)]
 pub struct Channel {
     pub down: Thruput,
     pub up: Thruput,
@@ -148,7 +179,17 @@ impl From<&ChannelCounter> for Channel {
 }
 
 /// Statistics of a torrent's current thruput.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+)]
 pub struct Thruput {
     pub total: u64,
     pub rate: u64,

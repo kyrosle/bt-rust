@@ -1,6 +1,6 @@
 use std::io;
 
-use bytes::{BytesMut, BufMut};
+use bytes::{BufMut, BytesMut};
 
 use crate::{
     blockinfo::{BlockData, BlockInfo},
@@ -52,8 +52,12 @@ impl TryFrom<u8> for MessageId {
         match k {
             k if k == Choke as u8 => Ok(Choke),
             k if k == Unchoke as u8 => Ok(Unchoke),
-            k if k == Interested as u8 => Ok(Interested),
-            k if k == NotInterested as u8 => Ok(NotInterested),
+            k if k == Interested as u8 => {
+                Ok(Interested)
+            }
+            k if k == NotInterested as u8 => {
+                Ok(NotInterested)
+            }
             k if k == Have as u8 => Ok(Have),
             k if k == Bitfield as u8 => Ok(Bitfield),
             k if k == Request as u8 => Ok(Request),
@@ -94,15 +98,31 @@ impl Message {
     pub fn id(&self) -> Option<MessageId> {
         match self {
             Message::KeepAlive => None,
-            Message::Bitfield(_) => Some(MessageId::Bitfield),
+            Message::Bitfield(_) => {
+                Some(MessageId::Bitfield)
+            }
             Message::Choke => Some(MessageId::Choke),
-            Message::Unchoke => Some(MessageId::Unchoke),
-            Message::Interested => Some(MessageId::Interested),
-            Message::NotInterested => Some(MessageId::NotInterested),
-            Message::Have { .. } => Some(MessageId::Have),
-            Message::Request(_) => Some(MessageId::Request),
-            Message::Block { .. } => Some(MessageId::Block),
-            Message::Cancel(_) => Some(MessageId::Cancel),
+            Message::Unchoke => {
+                Some(MessageId::Unchoke)
+            }
+            Message::Interested => {
+                Some(MessageId::Interested)
+            }
+            Message::NotInterested => {
+                Some(MessageId::NotInterested)
+            }
+            Message::Have { .. } => {
+                Some(MessageId::Have)
+            }
+            Message::Request(_) => {
+                Some(MessageId::Request)
+            }
+            Message::Block { .. } => {
+                Some(MessageId::Block)
+            }
+            Message::Cancel(_) => {
+                Some(MessageId::Cancel)
+            }
         }
     }
 
@@ -122,15 +142,22 @@ impl Message {
 impl BlockInfo {
     /// Encode the block info in the network binary protocol's format
     /// into the given buffer.
-    pub fn encode(&self, buf: &mut BytesMut) -> io::Result<()> {
+    pub fn encode(
+        &self,
+        buf: &mut BytesMut,
+    ) -> io::Result<()> {
         let piece_index = self
             .piece_index
             .try_into()
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidInput, e))?;
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    e,
+                )
+            })?;
         buf.put_u32(piece_index);
         buf.put_u32(self.offset);
         buf.put_u32(self.len);
         Ok(())
     }
 }
-
