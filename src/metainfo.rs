@@ -117,8 +117,7 @@ impl Metainfo {
                         file.path
                     );
                     return Err(
-                        MetainfoError::InvalidMetainfo
-                            .into(),
+                        MetainfoError::InvalidMetainfo,
                     );
                 }
 
@@ -130,8 +129,7 @@ impl Metainfo {
                         "Path in metainfo is empty"
                     );
                     return Err(
-                        MetainfoError::InvalidMetainfo
-                            .into(),
+                        MetainfoError::InvalidMetainfo,
                     );
                 }
 
@@ -142,8 +140,7 @@ impl Metainfo {
                         path
                     );
                     return Err(
-                        MetainfoError::InvalidMetainfo
-                            .into(),
+                        MetainfoError::InvalidMetainfo,
                     );
                 }
 
@@ -154,8 +151,7 @@ impl Metainfo {
                         path
                     );
                     return Err(
-                        MetainfoError::InvalidMetainfo
-                            .into(),
+                        MetainfoError::InvalidMetainfo,
                     );
                 }
 
@@ -172,7 +168,7 @@ impl Metainfo {
         } else {
             log::warn!("No `length` or `files` key present in metainfo");
             return Err(
-                MetainfoError::InvalidMetainfo.into(),
+                MetainfoError::InvalidMetainfo,
             );
         }
 
@@ -278,7 +274,7 @@ mod raw {
         ) -> Result<Sha1Hash> {
             let info =
                 serde_bencode::to_bytes(&self.info)?;
-            let digest = sha1::Sha1::digest(&info);
+            let digest = sha1::Sha1::digest(info);
             let mut info_hash = [0; 20];
             info_hash.copy_from_slice(&digest);
             Ok(info_hash)

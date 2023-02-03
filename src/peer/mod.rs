@@ -982,16 +982,8 @@ impl PeerSession {
                 .await?;
             }
             Message::Request(block_info) => {
-                // before processing request validate block info
-                self.validate_block_info(&block_info)?;
-                log::info!(
-                    target: &self.ctx.log_target,
-                    "Peer cancelled block {}",
-                    block_info
-                );
-
-                self.incoming_requests
-                    .remove(&block_info);
+                self.handle_request_msg(block_info)
+                    .await?;
             }
             Message::Block {
                 piece_index,

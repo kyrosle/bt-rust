@@ -16,7 +16,7 @@ use crate::{
     blockinfo::{BlockInfo, CachedBlock},
     disk::io::piece,
     error::*,
-    peer::{self, Command, Sender},
+    peer::{Command, Sender},
     storage_info::StorageInfo,
     torrent::{self, PieceCompletion},
     Block, PieceIndex,

@@ -1,10 +1,6 @@
 use std::{
-    fs::OpenOptions,
-    io::{Read, Seek, SeekFrom, Write},
-    os::windows::prelude::FileExt,
+    fs::OpenOptions, os::windows::prelude::FileExt,
 };
-
-use tempfile::tempfile;
 
 pub fn main() {
     // let mut fs = tempfile().unwrap();

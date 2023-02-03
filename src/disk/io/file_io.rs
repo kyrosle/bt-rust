@@ -5,7 +5,7 @@ use std::{os::windows::prelude::FileExt, sync::Arc};
 use crate::{
     blockinfo::CachedBlock,
     error::disk::{ReadError, WriteError},
-    iovecs::{advance, IoVec, IoVecs},
+    iovecs::{IoVec, IoVecs},
     storage_info::FileSlice,
     BLOCK_LEN,
 };

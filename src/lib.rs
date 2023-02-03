@@ -15,5 +15,8 @@ pub mod alert;
 pub mod avg;
 pub mod counter;
 
+pub mod conf;
+pub mod engine;
+
 mod define;
 pub use define::*;

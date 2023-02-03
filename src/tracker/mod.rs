@@ -12,6 +12,7 @@ use crate::error::tracker::TrackerError;
 pub mod announce;
 pub mod response;
 mod test;
+#[allow(clippy::module_inception)]
 pub mod tracker;
 
 pub mod prelude {

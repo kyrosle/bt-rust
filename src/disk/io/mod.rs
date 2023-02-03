@@ -8,10 +8,8 @@ pub mod torrent;
 mod tests {
     use std::{
         collections::BTreeMap,
-        fs,
         io::{Read, Seek},
         ops::Range,
-        os::windows::prelude::FileExt,
         path::{Path, PathBuf},
         sync,
     };

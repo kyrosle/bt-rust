@@ -2,7 +2,6 @@ use crate::{
     blockinfo::BlockInfo, error::*, peer,
     storage_info::StorageInfo, torrent, TorrentId,
 };
-use io::torrent::Torrent;
 use tokio::{
     sync::mpsc::{UnboundedReceiver, UnboundedSender},
     task,

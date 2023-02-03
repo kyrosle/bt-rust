@@ -48,6 +48,7 @@ impl Handshake {
         }
     }
     /// Returns the length of handshake, in bytes.
+    #[allow(clippy::len_without_is_empty)]
     pub const fn len(&self) -> u64 {
         19 + 8 + 20 + 20
     }

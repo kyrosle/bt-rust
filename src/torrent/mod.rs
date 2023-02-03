@@ -16,7 +16,8 @@ use crate::{
     peer::SessionTick,
     piece_picker::PiecePicker,
     storage_info::StorageInfo,
-    PeerId, PieceIndex, Sha1Hash, TorrentId,
+    tracker::tracker::Tracker,
+    Bitfield, PeerId, PieceIndex, Sha1Hash, TorrentId, conf::TorrentConf,
 };
 
 pub mod stats;
@@ -110,4 +111,18 @@ pub struct TorrentContext {
 
     /// Info about the torrent's storage (piece length, download length, etc).
     pub storage: StorageInfo,
+}
+
+/// Parameters for the torrent constructor.
+pub struct Params {
+    pub id: TorrentId,
+    pub disk_tx: disk::Sender,
+    pub info_hash: Sha1Hash,
+    pub storage_info: StorageInfo,
+    pub own_pieces: Bitfield,
+    pub trackers: Vec<Tracker>,
+    pub client_id: PeerId,
+    pub listen_addr: SocketAddr,
+    pub conf: TorrentConf,
+    pub alert_tx: AlertSender,
 }

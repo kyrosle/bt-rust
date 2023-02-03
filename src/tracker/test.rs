@@ -216,7 +216,7 @@ mod tests {
     ) -> Vec<u8> {
         let encoded_peers: Vec<_> = peers
             .iter()
-            .map(|(ip, port)| {
+            .flat_map(|(ip, port)| {
                 ip.octets()
                     .iter()
                     .chain(
@@ -229,7 +229,6 @@ mod tests {
                     .cloned()
                     .collect::<Vec<_>>()
             })
-            .flatten()
             .collect();
 
         let mut encoded = Vec::new();

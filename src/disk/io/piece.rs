@@ -1,13 +1,9 @@
-use std::{
-    collections::BTreeMap,
-    ops::Range,
-    sync::{self, Arc},
-};
+use std::{collections::BTreeMap, ops::Range, sync};
 
 use sha1::{Digest, Sha1};
 
 use crate::{
-    blockinfo::{block_count, block_len, CachedBlock},
+    blockinfo::{block_count, CachedBlock},
     error::disk::{ReadError, WriteError},
     iovecs::IoVec,
     FileIndex, Sha1Hash,

@@ -890,8 +890,7 @@ mod tests {
             .as_slice()
             .iter()
             .flat_map(|i| i.as_slice())
-            .collect::<Vec<_>>()
-            .is_empty());
+            .next().is_none());
 
         // restore the second half of the split buffer, which shouldn't be
         // affected by the above advances

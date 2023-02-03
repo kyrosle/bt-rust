@@ -87,7 +87,7 @@ pub struct Block {
 /// Blocks are cached in memory and are shared between the disk task and
 /// peer session tasks. Therefore we use atomic references to count to make sure
 /// that even if a block is evicted from cache, the peer still using it still has
-/// a vaild reference to it.
+/// a valid reference to it.
 pub type CachedBlock = Arc<Vec<u8>>;
 
 /// Abstracts over the block data type.
