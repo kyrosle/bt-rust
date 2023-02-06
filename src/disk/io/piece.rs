@@ -134,10 +134,10 @@ impl Piece {
                 .is_empty());
 
             // write to file
-            println!("{:?}", file_slice);
-            println!("buf :{:?}", bufs);
+            // println!("{file_slice:?}");
+            // println!("buf :{bufs:?}");
             let tail = file.write(file_slice, bufs)?;
-            println!("tail:{:?}", tail);
+            // println!("tail:{tail:?}");
 
             // `write_vectored_at` only writes at most `slice.len` bytes
             // of `bufs` to disk and returns the portion that wasn't

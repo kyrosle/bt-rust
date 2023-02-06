@@ -31,5 +31,5 @@ pub fn main() {
     fs.sync_data().unwrap();
 
     fs.seek_read(&mut buffer, 0).unwrap();
-    println!("{:?}", buffer);
+    println!("{buffer:?}");
 }

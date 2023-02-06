@@ -233,7 +233,7 @@ impl Torrent {
         &mut self,
         info: BlockInfo,
         data: Vec<u8>,
-    ) -> Result<()> {
+    ) -> EngineResult<()> {
         log::trace!("Saving block {} to disk", info);
 
         let piece_index = info.piece_index;
@@ -421,7 +421,7 @@ impl Torrent {
         &self,
         block_info: BlockInfo,
         result_tx: Sender,
-    ) -> Result<()> {
+    ) -> DiskResult<()> {
         log::trace!(
             "Reading {} from disk",
             block_info

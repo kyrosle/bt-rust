@@ -168,6 +168,17 @@ impl PieceDownload {
         self.blocks[block.index_in_piece()] =
             BlockStatus::Free;
     }
+
+    /// Marks all blocks free to be requested again.
+    pub fn free_all_blocks(&mut self) {
+        log::trace!(
+            "Canceling all blocks in piece {}",
+            self.index,
+        );
+        for block in self.blocks.iter_mut() {
+            *block = BlockStatus::Free;
+        }
+    }
 }
 
 #[cfg(test)]

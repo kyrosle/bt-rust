@@ -185,18 +185,16 @@ impl<'a> IoVecs<'a> {
             split_buf_first_half,
             split_buf_second_half,
         ) = buf_to_split.split_at(buf_split_pos);
-        println!(
-            "split first : {:?}",
-            split_buf_first_half
-        );
-        println!(
-            "split second: {:?}",
-            split_buf_second_half
-        );
-        println!(
-            "ptr: {:p}",
-            split_buf_second_half.as_ptr()
-        );
+        // println!(
+        //     "split first : {split_buf_first_half:?}"
+        // );
+        // println!(
+        //     "split second: {split_buf_second_half:?}"
+        // );
+        // println!(
+        //     "ptr: {:p}",
+        //     split_buf_second_half.as_ptr()
+        // );
 
         // We need to convert the second half of the split buffer into its
         // raw representation, as we can't store a reference to it as well as
@@ -429,10 +427,9 @@ impl<'a> IoVecs<'a> {
                         split_buf_second_half.ptr,
                     );
 
-                println!(
-                    "crated from split: {:?}",
-                    split_buf_second_half
-                );
+                // println!(
+                //     "crated from split: {split_buf_second_half:?}"
+                // );
 
                 // restore the second half of the split buffer
                 self.bufs[second_half.pos] =
@@ -890,7 +887,8 @@ mod tests {
             .as_slice()
             .iter()
             .flat_map(|i| i.as_slice())
-            .next().is_none());
+            .next()
+            .is_none());
 
         // restore the second half of the split buffer, which shouldn't be
         // affected by the above advances
@@ -1153,7 +1151,7 @@ mod tests {
             .skip(advance_count)
             .collect();
 
-        println!("{:?}", first_half);
+        println!("{first_half:?}");
         assert_eq!(first_half, expected_first_half);
     }
 }

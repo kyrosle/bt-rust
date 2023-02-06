@@ -70,9 +70,7 @@ mod tests {
 
         // read and compare
         let mut file_content = Vec::new();
-        file.handle
-            .seek(std::io::SeekFrom::Start(0))
-            .unwrap();
+        file.handle.rewind().unwrap();
         file.handle
             .read_to_end(&mut file_content)
             .expect("cannot read test file");
@@ -122,9 +120,7 @@ mod tests {
         // compare file content to piece
         let mut file = files[0].write().unwrap();
         let mut file_content = Vec::new();
-        file.handle
-            .seek(std::io::SeekFrom::Start(0))
-            .unwrap();
+        file.handle.rewind().unwrap();
         file.handle
             .read_to_end(&mut file_content)
             .expect("cannot read test file");
@@ -218,7 +214,7 @@ mod tests {
         )
         .expect("cannot read piece from file");
 
-        println!("Trick in mod test: {:?}", blocks);
+        println!("Trick in mod test: {blocks:?}");
         // compare contents
         // map Vec<Arc<Vec<u8>>> to Vec<Vec<u8>>
         let actual: Vec<_> = blocks
@@ -305,9 +301,7 @@ mod tests {
             let mut file = file.write().unwrap();
             let mut file_content = Vec::new();
 
-            file.handle
-                .seek(std::io::SeekFrom::Start(0))
-                .unwrap();
+            file.handle.rewind().unwrap();
             file.handle
                 .read_to_end(&mut file_content)
                 .expect("cannot read test file");

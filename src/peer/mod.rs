@@ -771,7 +771,7 @@ impl PeerSession {
     /// other peer sessions may download them.
     async fn free_pending_blocks(&mut self) {
         let downloads_guard =
-            self.torrent.download.read().await;
+            self.torrent.downloads.read().await;
         for block in self.outgoing_requests.drain() {
             // The piece may no longer be present if it was completed by
             // another peer in the meantime and torrent removed it from
@@ -1063,7 +1063,7 @@ impl PeerSession {
         // This will result in less in-progress pieces.
         for download in self
             .torrent
-            .download
+            .downloads
             .write()
             .await
             .values_mut()
@@ -1153,7 +1153,7 @@ impl PeerSession {
                 );
                 // save download
                 self.torrent
-                    .download
+                    .downloads
                     .write()
                     .await
                     .insert(
@@ -1165,7 +1165,7 @@ impl PeerSession {
                     target: &self.ctx.log_target,
                     "Cannot pick more pieces (pending \
                     pieces: {}, blocks: {})",
-                    self.torrent.download.read().await.len(),
+                    self.torrent.downloads.read().await.len(),
                     self.outgoing_requests.len()
                 );
 
@@ -1220,7 +1220,7 @@ impl PeerSession {
         // and mark the block in piece as downloaded
         let prev_status = match self
             .torrent
-            .download
+            .downloads
             .read()
             .await
             .get(&block_info.piece_index)

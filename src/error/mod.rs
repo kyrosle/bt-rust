@@ -24,7 +24,7 @@ pub use tracker::{
 
 use crate::TorrentId;
 
-pub type Result<T, E = Error> =
+pub type EngineResult<T, E = Error> =
     std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]

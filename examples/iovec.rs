@@ -38,5 +38,5 @@ fn main() {
 
     iovecs[0] = c;
 
-    println!("{:#?}", iovecs);
+    println!("{iovecs:#?}");
 }

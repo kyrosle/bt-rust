@@ -48,6 +48,7 @@ pub struct Announce {
 /// If not present, the event will be the `Empty` type.
 ///
 /// If not present, this is one of the announcements done at regular intervals.
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Event {
     /// The first request to tracker must include this value.
     Started,

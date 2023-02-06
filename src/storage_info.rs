@@ -83,7 +83,7 @@ pub struct FileSlice {
 
 /// Information about a torrent's storage details, such as the piece count
 /// and length, download length, etc.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StorageInfo {
     /// The number of pieces in the torrent.
     pub piece_count: usize,

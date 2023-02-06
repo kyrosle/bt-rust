@@ -1,3 +1,5 @@
+use std::fmt;
+
 use reqwest::{Client, Url};
 
 use super::prelude::Result;
@@ -8,6 +10,7 @@ use super::{announce::Announce, response::Response};
 pub struct Tracker {
     /// The HTTP client (from reqwest::Client)
     client: Client,
+    /// The URL of the tracker.
     url: Url,
 }
 
@@ -76,5 +79,14 @@ impl Tracker {
 
         let resp = serde_bencode::from_bytes(&resp)?;
         Ok(resp)
+    }
+}
+
+impl fmt::Display for Tracker {
+    fn fmt(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+    ) -> fmt::Result {
+        write!(f, "'{}'", self.url)
     }
 }
