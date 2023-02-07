@@ -745,7 +745,7 @@ impl Torrent {
                 .peers
                 .iter()
                 .map(|(addr, entry)| {
-                    stats::PeerSessionsStats {
+                    stats::PeerSessionStats {
                         addr: *addr,
                         id: entry.id,
                         state: entry.state,

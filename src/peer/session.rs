@@ -96,7 +96,7 @@ pub struct SessionContext {
     pub in_slow_start: bool,
 
     /// Whether we're in endgame mode. See
-    /// [`crate::torrent::TorrentContext::in_end_game`].
+    /// [`crate::torrent::Torrent::in_end_game`].
     ///
     /// This field is a cache for the one in torrent context,
     /// as it's accessed very frequently and we wouldn't want to

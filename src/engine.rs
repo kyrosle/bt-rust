@@ -1,8 +1,21 @@
+//! the engine is the top-level coordinator that runs and manages all entities
+//! in the torrent engine. The user interacts with the engine via the
+//! [`EngineHandle`] which exposes a restricted public API. The underlying
+//! communication method is [tokio mpsc channel].
+//!
+//! The engine is spawned as a [tokio task] and runs in the background.
+//! As with spawning other tokio tasks, it must be done within the context
+//! of a tokio executor.
+//!
+//! The engine is run until an unrecoverable error occurs, or until the
+//! user seeds a shutdown command.
+
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
 };
 
+use log::info;
 use tokio::{
     sync::mpsc::{
         self, UnboundedReceiver, UnboundedSender,
@@ -13,13 +26,14 @@ use tokio::{
 use crate::{
     alert::AlertSender,
     conf::{Conf, TorrentConf},
-    disk,
+    disk::{self, JoinHandle},
     error::{
-        EngineResult, NewTorrentError, TorrentResult,
+        EngineResult, Error, NewTorrentError,
+        TorrentResult,
     },
     metainfo::Metainfo,
     storage_info::StorageInfo,
-    torrent,
+    torrent::{self, Torrent},
     tracker::tracker::Tracker,
     Bitfield, TorrentId,
 };
@@ -173,6 +187,7 @@ impl Engine {
         Ok(())
     }
 
+    /// Creates and spawns a new torrent based on the parameters given.
     async fn create_torrent(
         &mut self,
         id: TorrentId,
@@ -186,6 +201,8 @@ impl Engine {
             self.conf.engine.download_dir.clone(),
         );
 
+        // TODO: don't duplicate trackers if multiple torrents use the same
+        // ones (common in practice)
         let trackers = params
             .metainfo
             .trackers
@@ -197,27 +214,158 @@ impl Engine {
             .mode
             .own_pieces(storage_info.piece_count);
 
-        // let (mut torrent, torrent_tx) =
-        //     Torrent::new(torrent::Params {
-        //         id,
-        //         disk_tx: self.disk_tx.clone(),
-        //         info_hash: params.metainfo.info_hash,
-        //         storage_info: storage_info.clone(),
-        //         own_pieces,
-        //         trackers,
-        //         client_id: self.conf.engine.client_id,
-        //         listen_addr: params
-        //             .listen_addr
-        //             .unwrap_or_else(|| {
-        //                 SocketAddr::new(
-        //                     Ipv4Addr::UNSPECIFIED
-        //                         .into(),
-        //                     0,
-        //                 )
-        //             }),
-        //         conf,
-        //         alert_tx: self.alert_tx.clone(),
-        //     });
+        // crate and spawn torrent
+        // TODO: For now we spawn automatically, but later we add torrent
+        // pause/restart APIs, this will be separate step. There should be
+        // a `start` flag in `params` that says whether to immediately spawn
+        // a new torrent (or maybe in `TorrentConf`).
+        let (mut torrent, torrent_tx) =
+            Torrent::new(torrent::Params {
+                id,
+                disk_tx: self.disk_tx.clone(),
+                info_hash: params.metainfo.info_hash,
+                storage_info: storage_info.clone(),
+                own_pieces,
+                trackers,
+                client_id: self.conf.engine.client_id,
+                listen_addr: params
+                    .listen_addr
+                    .unwrap_or_else(|| {
+                        SocketAddr::new(
+                            Ipv4Addr::UNSPECIFIED
+                                .into(),
+                            0,
+                        )
+                    }),
+                conf,
+                alert_tx: self.alert_tx.clone(),
+            });
+
+        // Allocate torrent on disk. This is an asynchronous process and we can
+        // start the torrent in the meantime.
+        //
+        // Technically we could have issues if the torrent connects to peers
+        // that send data before we manage to allocate the (empty) files on
+        // disk. However, this should be an extremely pathological case for
+        // 2 reasons:
+        // - Most torrents would be started without peers, so a torrent would
+        //   have to wait for peers from its tracker(s). This should be a
+        //   a sufficiently long time to allocate torrent on disk.
+        // - Then, even if we manage to connect peers quickly, testing shows
+        //   that they don't tend to unchoke use immediately.
+        //
+        // Thus there is little chance to receive data and thus cause a disk
+        // write or disk read immediately.
+        self.disk_tx.send(
+            disk::Command::NewTorrent {
+                id,
+                storage_info,
+                piece_hashes: params.metainfo.pieces,
+                torrent_tx: torrent_tx.clone(),
+            },
+        )?;
+
+        let seeds = params.mode.seeds();
+        let join_handle = task::spawn(async move {
+            torrent.start(&seeds).await
+        });
+
+        self.torrents.insert(
+            id,
+            TorrentEntry {
+                tx: torrent_tx,
+                join_handle: Some(join_handle),
+            },
+        );
+
+        Ok(())
+    }
+
+    async fn shutdown(&mut self) -> EngineResult<()> {
+        log::info!("Shutting down engine");
+
+        // tell all torrents to shut down and join their tasks
+        for torrent in self.torrents.values_mut() {
+            // the torrent task may no longer be running, so don't panic here
+            torrent
+                .tx
+                .send(torrent::Command::Shutdown)
+                .ok();
+        }
+
+        for torrent in self.torrents.values_mut() {
+            // TODO: if torrent task is not running, does this panic.
+            if let Err(e) = torrent
+                .join_handle
+                .take()
+                .expect("torrent join handle missing")
+                .await
+                .expect("task error")
+            {
+                log::error!("Torrent error: {}", e);
+            }
+        }
+
+        // send a shutdown command to disk
+        self.disk_tx.send(disk::Command::Shutdown)?;
+        // and join on its handle
+        self.disk_join_handle
+            .take()
+            .expect("disk join handle missing")
+            .await
+            .expect("disk task has panicked")
+            .map_err(Error::from)?;
+
+        Ok(())
+    }
+}
+
+/// A handle to the currently running torrent engine.
+pub struct EngineHandle {
+    tx: Sender,
+    join_handle: Option<JoinHandle>,
+}
+
+impl EngineHandle {
+    /// Creates and starts a torrent, if its metainfo is valid.
+    ///
+    /// If successful, it returns the id of the torrent.
+    /// This id can be used to identify the torrent when
+    /// issuing further commands to engine.
+    pub fn create_torrent(
+        &self,
+        params: TorrentParams,
+    ) -> EngineResult<TorrentId> {
+        log::trace!("Creating torrent");
+        let id = TorrentId::new();
+        self.tx.send(Command::CreateTorrent {
+            id,
+            params: Box::new(params),
+        })?;
+        Ok(id)
+    }
+
+    /// Gracefully shuts down the engine and waits for all
+    /// its torrents to do the same.
+    ///
+    /// # Panics
+    ///
+    /// This method panics if the engine has already been
+    /// shut down.
+    pub async fn shutdown(
+        mut self,
+    ) -> EngineResult<()> {
+        log::trace!("Shutting down engine task");
+        self.tx.send(Command::Shutdown)?;
+        if let Err(e) = self
+            .join_handle
+            .take()
+            .expect("engine already shut down")
+            .await
+            .expect("task error")
+        {
+            log::error!("Engine error: {}", e);
+        }
         Ok(())
     }
 }

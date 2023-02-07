@@ -1037,13 +1037,13 @@ impl PeerSession {
         if self.ctx.state.is_choked {
             log::debug!(
                 target: &self.ctx.log_target,
-                "Cannot make requests if not choked"
+                "Cannot make requests while choked"
             );
 
             return Ok(());
         }
 
-        if self.ctx.state.is_interested {
+        if !self.ctx.state.is_interested {
             log::debug!(
                 target: &self.ctx.log_target,
                 "Cannot make requests if not interested"

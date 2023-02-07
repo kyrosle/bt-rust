@@ -80,7 +80,7 @@ pub enum Peers {
     /// The number of connected peers.
     Count(usize),
     /// The full list of connected peers, with aggregated statistics for each.
-    Full(Vec<PeerSessionsStats>),
+    Full(Vec<PeerSessionStats>),
 }
 
 impl Peers {
@@ -106,7 +106,7 @@ impl Default for Peers {
 
 /// Aggregate statistics of a peer session.
 #[derive(Clone, Debug)]
-pub struct PeerSessionsStats {
+pub struct PeerSessionStats {
     /// The IP-port pair of the peer.
     pub addr: SocketAddr,
     /// Peer's 20 byte BitTorrent id.
