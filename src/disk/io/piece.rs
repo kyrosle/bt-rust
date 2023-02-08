@@ -118,7 +118,7 @@ impl Piece {
             let remaining_piece_len =
                 self.len as u64 - total_write_count;
 
-            // println!("{torrent_write_offset},{remaining_piece_len}");
+            // //println!("{torrent_write_offset},{remaining_piece_len}");
             let file_slice = file.info.get_slice(
                 torrent_write_offset,
                 remaining_piece_len,
@@ -134,10 +134,10 @@ impl Piece {
                 .is_empty());
 
             // write to file
-            // println!("{file_slice:?}");
-            // println!("buf :{bufs:?}");
+            // //println!("{file_slice:?}");
+            // //println!("buf :{bufs:?}");
             let tail = file.write(file_slice, bufs)?;
-            // println!("tail:{tail:?}");
+            // //println!("tail:{tail:?}");
 
             // `write_vectored_at` only writes at most `slice.len` bytes
             // of `bufs` to disk and returns the portion that wasn't
@@ -228,9 +228,9 @@ pub fn read(
         debug_assert!(file_slice.len > 0);
 
         // read data
-        // println!("in piece::read buf before read {:?}", bufs);
+        // //println!("in piece::read buf before read {:?}", bufs);
         blocks.push(file.read(file_slice)?);
-        // println!("in piece::read buf after  read {:?}", bufs);
+        // //println!("in piece::read buf after  read {:?}", bufs);
 
         torrent_read_offset += file_slice.len;
         total_read_count += file_slice.len;

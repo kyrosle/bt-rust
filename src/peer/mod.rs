@@ -330,6 +330,7 @@ impl PeerSession {
             self.ctx.counters.protocol.up +=
                 handshake.len();
 
+            println!("{handshake:?}");
             socket.send(handshake).await?;
         }
 
@@ -1214,7 +1215,13 @@ impl PeerSession {
         data: Vec<u8>,
     ) -> PeerResult<()> {
         // remove pending block request
-        self.outgoing_requests.remove(&block_info);
+        let is_remove =
+            self.outgoing_requests.remove(&block_info);
+        // FIXME: sometime the receive block on which status is `Free` or `Received` (not `Request`)
+        if is_remove {
+            return Ok(());
+        }
+        assert!(is_remove);
 
         // try to find the piece to which this block corresponds
         // and mark the block in piece as downloaded

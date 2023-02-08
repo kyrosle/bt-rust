@@ -15,7 +15,6 @@ use std::{
     net::{Ipv4Addr, SocketAddr},
 };
 
-use log::info;
 use tokio::{
     sync::mpsc::{
         self, UnboundedReceiver, UnboundedSender,
@@ -24,7 +23,7 @@ use tokio::{
 };
 
 use crate::{
-    alert::AlertSender,
+    alert::{AlertReceiver, AlertSender},
     conf::{Conf, TorrentConf},
     disk::{self, JoinHandle},
     error::{
@@ -61,6 +60,38 @@ pub enum Command {
     /// Gracefully shuts down the engine and waits for all its torrents to do
     /// the same.
     Shutdown,
+}
+
+/// Spawns the engine as a tokio task.
+///
+/// As with spawning other tokio tasks, it must be done within the context
+/// of a tokio executor.
+///
+/// The return value is a tuple of an [`EngineHandle`], with may be used to
+/// send the engine commands, and an [`AlertReceiver`], to which
+/// various components in the engine will send alerts of events.
+pub fn spawn(
+    conf: Conf,
+) -> EngineResult<(EngineHandle, AlertReceiver)> {
+    log::info!("Spawning engine task");
+
+    // crate alert channels and return alert port to user
+    let (alert_tx, alert_rx) =
+        mpsc::unbounded_channel();
+    let (mut engine, tx) =
+        Engine::new(conf, alert_tx)?;
+
+    let join_handle =
+        task::spawn(async move { engine.run().await });
+    log::info!("Spawning engine task");
+
+    Ok((
+        EngineHandle {
+            tx,
+            join_handle: Some(join_handle),
+        },
+        alert_rx,
+    ))
 }
 
 /// Information for creating a new torrent.
@@ -175,12 +206,32 @@ impl Engine {
                 Command::CreateTorrent {
                     id,
                     params,
-                } => todo!(),
+                } => {
+                    self.create_torrent(id, params)
+                        .await?
+                }
                 Command::TorrentAllocation {
                     id,
                     result,
-                } => todo!(),
-                Command::Shutdown => todo!(),
+                } => match result {
+                    Ok(_) => {
+                        log::info!(
+                            "Torrent {} allocated on disk",
+                            id
+                        );
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "Error allocating torrent {} on disk: {}", 
+                            id,
+                            e
+                        );
+                    }
+                },
+                Command::Shutdown => {
+                    self.shutdown().await?;
+                    break;
+                },
             }
         }
 
@@ -191,7 +242,7 @@ impl Engine {
     async fn create_torrent(
         &mut self,
         id: TorrentId,
-        params: TorrentParams,
+        params: Box<TorrentParams>,
     ) -> EngineResult<()> {
         let conf = params.conf.unwrap_or_else(|| {
             self.conf.torrent.clone()

@@ -59,7 +59,7 @@ mod tests {
             .values()
             .map(|b| IoVec::new(b))
             .collect();
-        // println!("{:?}", iovecs);
+        // //println!("{:?}", iovecs);
         let tail = file
             .write(file_slice, &mut iovecs)
             .expect("cannot write piece to file");
@@ -205,7 +205,7 @@ mod tests {
             .expect("cannot write piece to file");
 
         // read piece as list of blocks
-        println!("params files count");
+        //println!("params files count");
         let blocks = piece::read(
             torrent_piece_offset,
             file_range,
@@ -214,7 +214,7 @@ mod tests {
         )
         .expect("cannot read piece from file");
 
-        println!("Trick in mod test: {blocks:?}");
+        //println!("Trick in mod test: {blocks:?}");
         // compare contents
         // map Vec<Arc<Vec<u8>>> to Vec<Vec<u8>>
         let actual: Vec<_> = blocks
@@ -397,7 +397,7 @@ mod tests {
         )
         .expect("cannot read piece from files");
 
-        // println!("blocks: {:?}", blocks);
+        // //println!("blocks: {:?}", blocks);
 
         // compare contents
         // map Vec<Arc<Vec<u8>>> to Vec<Vec<u8>>

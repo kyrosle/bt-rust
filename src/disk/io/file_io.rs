@@ -35,7 +35,7 @@ impl TorrentFile {
             blocks,
             file_slice.len as usize,
         );
-        println!("iovecs: {iovecs:?}");
+        //println!("iovecs: {iovecs:?}");
         // the write buffer cannot be larger than the file slice we want to write to.
         debug_assert!(
             iovecs
@@ -76,11 +76,11 @@ impl TorrentFile {
         //         WriteError::Io(std::io::Error::last_os_error())
         //     })?;
 
-        // println!("{}", file_slice.offset + total_write_count);
-        println!(
-            "write in {:?}",
-            iovecs.as_u8_vec().as_slice(),
-        );
+        // //println!("{}", file_slice.offset + total_write_count);
+        //println!(
+        //     "write in {:?}",
+        //     iovecs.as_u8_vec().as_slice(),
+        // );
         self.handle
             .seek_write(
                 iovecs.as_u8_vec().as_slice(),
@@ -99,7 +99,7 @@ impl TorrentFile {
 
         // tally up the total write count
         // total_write_count += write_count as u64;
-        // println!("write: {write_count}");
+        // //println!("write: {write_count}");
 
         // no need to advance write buffers cursor if we're written
         // all of it to file --in that case, we can just split the
@@ -182,8 +182,8 @@ impl TorrentFile {
 
         Ok(blocks)
 
-        // println!("{}", total_read_count);
-        // println!("{:?}", iovecs);
+        // //println!("{}", total_read_count);
+        // //println!("{:?}", iovecs);
 
         // ---
         // In linux using the api `preadv` need to advance the buffer because the vector io system-call

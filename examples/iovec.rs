@@ -27,7 +27,7 @@ fn main() {
         .map(|b| IoVec::new(b))
         .collect::<Vec<_>>();
 
-    // println!("{:#?}", iovecs);
+    // //println!("{:#?}", iovecs);
 
     let c = c.as_mut_slice();
 
@@ -38,5 +38,5 @@ fn main() {
 
     iovecs[0] = c;
 
-    println!("{iovecs:#?}");
+    // //println!("{iovecs:#?}");
 }

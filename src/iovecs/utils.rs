@@ -95,7 +95,7 @@ impl<'a> IoVecs<'a> {
                 None => return Self::unbounded(bufs),
             };
 
-        // println!("{max_len},{bufs_len},{bufs_split_pos}");
+        // //println!("{max_len},{bufs_len},{bufs_split_pos}");
 
         // If we're here, it means that the total buffers length exceeds the
         // slice length and we must split the buffers.
@@ -185,13 +185,13 @@ impl<'a> IoVecs<'a> {
             split_buf_first_half,
             split_buf_second_half,
         ) = buf_to_split.split_at(buf_split_pos);
-        // println!(
+        // //println!(
         //     "split first : {split_buf_first_half:?}"
         // );
-        // println!(
+        // //println!(
         //     "split second: {split_buf_second_half:?}"
         // );
-        // println!(
+        // //println!(
         //     "ptr: {:p}",
         //     split_buf_second_half.as_ptr()
         // );
@@ -427,7 +427,7 @@ impl<'a> IoVecs<'a> {
                         split_buf_second_half.ptr,
                     );
 
-                // println!(
+                // //println!(
                 //     "crated from split: {split_buf_second_half:?}"
                 // );
 
@@ -1110,7 +1110,7 @@ mod tests {
             .skip(1)
             .flat_map(|b| b.clone())
             .collect::<Vec<_>>();
-        // println!("{:?}", actual);
+        // //println!("{:?}", actual);
 
         assert_eq!(actual, expected);
     }
@@ -1151,7 +1151,7 @@ mod tests {
             .skip(advance_count)
             .collect();
 
-        println!("{first_half:?}");
+        //println!("{first_half:?}");
         assert_eq!(first_half, expected_first_half);
     }
 }

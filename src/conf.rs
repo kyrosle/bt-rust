@@ -4,7 +4,8 @@ use std::{path::PathBuf, time::Duration};
 
 use crate::PeerId;
 
-pub const CLIENT_ID: &PeerId = b"cbt-0000000000000000";
+// pub const CLIENT_ID: &PeerId = b"cbt-0000000000000000";
+pub const CLIENT_ID: &PeerId = b"-qB1450-352885928458";
 
 /// The global configuration for the torrent engine and all its parts.
 #[derive(Debug, Clone)]

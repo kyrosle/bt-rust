@@ -402,9 +402,9 @@ mod tests {
                         data.len(),
                         block.len as usize
                     );
-                    println!(
-                        "Writing piece {index} block {block}"
-                    );
+                    // //println!(
+                    //     "Writing piece {index} block {block}"
+                    // );
                     disk_tx
                         .send(Command::WriteBlock {
                             id,
@@ -489,7 +489,7 @@ mod tests {
                     data.len(),
                     block.len as usize
                 );
-                println!("Writing invalid piece {index} block {block}");
+                //println!("Writing invalid piece {index} block {block}");
                 disk_tx
                     .send(Command::WriteBlock {
                         id,
@@ -561,9 +561,9 @@ mod tests {
                     data.len(),
                     block.len as usize
                 );
-                println!(
-                    "Writing piece {index} block {block}"
-                );
+                //println!(
+                //     "Writing piece {index} block {block}"
+                // );
                 disk_tx
                     .send(Command::WriteBlock {
                         id,

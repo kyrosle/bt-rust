@@ -322,6 +322,17 @@ impl Torrent {
                 .ok();
         }
 
+        if let Err(e) = self.run().await {
+            // send alert of torrent failure to user
+            self.ctx
+                .alert_tx
+                .send(Alert::Error(Error::Torrent {
+                    id: self.ctx.id,
+                    error: e,
+                }))
+                .ok();
+        }
+
         Ok(())
     }
 
@@ -509,7 +520,8 @@ impl Torrent {
         let connect_count = self
             .conf
             .max_connected_peer_count
-            .saturating_sub(self.peers.len());
+            .saturating_sub(self.peers.len())
+            .min(self.available_peers.len());
         if connect_count == 0 {
             log::trace!("Cannot connect to peers");
             return;
