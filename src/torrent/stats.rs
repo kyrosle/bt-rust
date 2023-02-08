@@ -193,7 +193,7 @@ impl From<&ChannelCounter> for Channel {
 pub struct Thruput {
     pub total: u64,
     pub rate: u64,
-    pub peek: u64,
+    pub peak: u64,
 }
 
 impl From<&Counter> for Thruput {
@@ -201,7 +201,7 @@ impl From<&Counter> for Thruput {
         Thruput {
             total: c.total(),
             rate: c.avg(),
-            peek: c.peak(),
+            peak: c.peak(),
         }
     }
 }
