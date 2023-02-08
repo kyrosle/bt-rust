@@ -32,4 +32,5 @@ pub mod prelude {
         metainfo::Metainfo,
         TorrentId,
     };
+    pub use futures::stream::StreamExt;
 }
