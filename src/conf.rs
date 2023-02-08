@@ -13,6 +13,24 @@ pub struct Conf {
     pub torrent: TorrentConf,
 }
 
+impl Conf {
+    /// Returns the torrent configuration with reasonable defaults,
+    /// expected for the download directory, as it is not sensible
+    /// to guess that for the user. It uses the default client id
+    /// [`CLIENT_ID`]
+    pub fn new(
+        download_dir: impl Into<PathBuf>,
+    ) -> Self {
+        Self {
+            engine: EngineConf {
+                client_id: *CLIENT_ID,
+                download_dir: download_dir.into(),
+            },
+            torrent: TorrentConf::default(),
+        }
+    }
+}
+
 /// Configuration related to the engine itself.
 #[derive(Debug, Clone)]
 pub struct EngineConf {
