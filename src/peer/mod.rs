@@ -10,6 +10,7 @@
 
 use std::{
     collections::HashSet,
+    io::Write,
     net::SocketAddr,
     sync::Arc,
     time::{Duration, Instant},
@@ -330,7 +331,13 @@ impl PeerSession {
             self.ctx.counters.protocol.up +=
                 handshake.len();
 
-            println!("{handshake:?}");
+            // let hs = format!("{handshake:?}");
+            // let mut file = std::fs::OpenOptions::new()
+            //     .write(true)
+            //     .open("./handshake")
+            //     .unwrap();
+            // file.write_all(hs.as_bytes()).unwrap();
+
             socket.send(handshake).await?;
         }
 
@@ -1215,13 +1222,7 @@ impl PeerSession {
         data: Vec<u8>,
     ) -> PeerResult<()> {
         // remove pending block request
-        let is_remove =
-            self.outgoing_requests.remove(&block_info);
-        // FIXME: sometime the receive block on which status is `Free` or `Received` (not `Request`)
-        if is_remove {
-            return Ok(());
-        }
-        assert!(is_remove);
+        self.outgoing_requests.remove(&block_info);
 
         // try to find the piece to which this block corresponds
         // and mark the block in piece as downloaded

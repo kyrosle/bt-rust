@@ -1,17 +1,39 @@
 //! This module defines types used to configure the engine and its parts.
 
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::PathBuf, ptr::slice_from_raw_parts,
+    time::Duration,
+};
+
+use once_cell::sync::Lazy;
+use rand::Rng;
 
 use crate::PeerId;
 
-// pub const CLIENT_ID: &PeerId = b"cbt-0000000000000000";
-pub const CLIENT_ID: &PeerId = b"-qB1450-352885928458";
+pub const CLIENT_ID: &PeerId = b"cbt-0000000000000000";
+// pub const CLIENT_ID: &PeerId = b"-qB1450-352885928458";
+// pub static CLIENT_ID: Lazy<PeerId> = Lazy::new(|| {
+//     let mut id = [0u8; 20];
+//     let rid = get_random_string(20);
+//     let rid = rid.as_bytes();
+//     id[..].copy_from_slice(&rid[..20]);
+//     id
+// });
 
 /// The global configuration for the torrent engine and all its parts.
 #[derive(Debug, Clone)]
 pub struct Conf {
     pub engine: EngineConf,
     pub torrent: TorrentConf,
+}
+
+fn get_random_string(len: usize) -> String {
+    rand::thread_rng()
+        .sample_iter::<char, _>(
+            rand::distributions::Standard,
+        )
+        .take(len)
+        .collect()
 }
 
 impl Conf {

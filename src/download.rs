@@ -138,7 +138,7 @@ impl PieceDownload {
         debug_assert!(block.offset < self.len);
         debug_assert!(block.len <= self.len);
 
-        // we should only receive blocks that we have requested before
+        // TODO: we should only receive blocks that we have requested before
         debug_assert!(
             matches!(
                 self.blocks[block.index_in_piece()],

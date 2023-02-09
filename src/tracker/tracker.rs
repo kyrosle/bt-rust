@@ -53,8 +53,8 @@ impl Tracker {
 
         let url = format!(
             "{url}\
-            ?info_hash={info_hash}\
-            &peer_id={peer_id}",
+            ?peer_id={peer_id}\
+            &info_hash={info_hash}",
             url = self.url,
             info_hash =
                 percent_encoding::percent_encode(
