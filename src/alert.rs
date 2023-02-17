@@ -18,12 +18,12 @@
 //! - [peers]
 
 use tokio::sync::mpsc::{
-    UnboundedReceiver, UnboundedSender,
+  UnboundedReceiver, UnboundedSender,
 };
 
 use crate::{
-    error::Error, torrent::stats::TorrentStats,
-    TorrentId,
+  error::Error, torrent::stats::TorrentStats,
+  TorrentId,
 };
 
 pub type AlertSender = UnboundedSender<Alert>;
@@ -35,14 +35,14 @@ pub type AlertReceiver = UnboundedReceiver<Alert>;
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Alert {
-    /// Posted when the torrent has finished downloading.
-    TorrentComplete(TorrentId),
-    /// Each running torrent sends an update of its latest statistics
-    /// every second via this alert.
-    TorrentStats {
-        id: TorrentId,
-        stats: Box<TorrentStats>,
-    },
-    /// An error from somewhere inside the engine.
-    Error(Error),
+  /// Posted when the torrent has finished downloading.
+  TorrentComplete(TorrentId),
+  /// Each running torrent sends an update of its latest statistics
+  /// every second via this alert.
+  TorrentStats {
+    id: TorrentId,
+    stats: Box<TorrentStats>,
+  },
+  /// An error from somewhere inside the engine.
+  Error(Error),
 }

@@ -22,15 +22,15 @@ mod define;
 pub use define::*;
 
 pub mod prelude {
-    pub use crate::{
-        alert::{Alert, AlertReceiver},
-        conf::Conf,
-        engine::{
-            self, EngineHandle, Mode, TorrentParams,
-        },
-        error::Error,
-        metainfo::Metainfo,
-        TorrentId,
-    };
-    pub use futures::stream::StreamExt;
+  pub use crate::{
+    alert::{Alert, AlertReceiver},
+    conf::Conf,
+    engine::{
+      self, EngineHandle, Mode, TorrentParams,
+    },
+    error::Error,
+    metainfo::Metainfo,
+    TorrentId,
+  };
+  pub use futures::stream::StreamExt;
 }
