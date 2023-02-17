@@ -1,9 +1,6 @@
 //! This module defines types used to configure the engine and its parts.
 
-use std::{
-  path::PathBuf, ptr::slice_from_raw_parts,
-  time::Duration,
-};
+use std::{path::PathBuf, ptr::slice_from_raw_parts, time::Duration};
 
 use once_cell::sync::Lazy;
 use rand::Rng;
@@ -29,9 +26,7 @@ pub struct Conf {
 
 fn get_random_string(len: usize) -> String {
   rand::thread_rng()
-    .sample_iter::<char, _>(
-      rand::distributions::Standard,
-    )
+    .sample_iter::<char, _>(rand::distributions::Standard)
     .take(len)
     .collect()
 }
@@ -41,9 +36,7 @@ impl Conf {
   /// expected for the download directory, as it is not sensible
   /// to guess that for the user. It uses the default client id
   /// [`CLIENT_ID`]
-  pub fn new(
-    download_dir: impl Into<PathBuf>,
-  ) -> Self {
+  pub fn new(download_dir: impl Into<PathBuf>) -> Self {
     Self {
       engine: EngineConf {
         client_id: *CLIENT_ID,

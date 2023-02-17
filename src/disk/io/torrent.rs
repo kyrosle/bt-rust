@@ -89,9 +89,7 @@ struct ThreadContext {
   ///
   /// Both of these are very short lived and shouldn't bog down the reactor by
   /// too much.
-  read_cache: sync::Mutex<
-    LruCache<PieceIndex, Vec<CachedBlock>>,
-  >,
+  read_cache: sync::Mutex<LruCache<PieceIndex, Vec<CachedBlock>>>,
 
   /// Handles of all files in torrent, opened in advance during torrent
   /// creation.
@@ -141,18 +139,11 @@ impl Torrent {
         info.download_dir
       );
       fs::create_dir_all(&info.download_dir)?;
-      log::info!(
-        "Download directory {:?} created",
-        info.download_dir
-      );
+      log::info!("Download directory {:?} created", info.download_dir);
     }
 
     // TODO: Return error instead
-    debug_assert_ne!(
-      info.files.len(),
-      0,
-      "torrent must have files"
-    );
+    debug_assert_ne!(info.files.len(), 0, "torrent must have files");
     let files = if info.files.len() == 1 {
       let file = &info.files[0];
       log::debug!(
@@ -166,14 +157,10 @@ impl Torrent {
       )?)]
     } else {
       debug_assert!(!info.files.is_empty());
-      log::debug!(
-        "Torrent is multi file {:?}",
-        info.files
-      );
+      log::debug!("Torrent is multi file {:?}", info.files);
       log::debug!("Setting up directory structure");
 
-      let mut torrent_files =
-        Vec::with_capacity(info.files.len());
+      let mut torrent_files = Vec::with_capacity(info.files.len());
       for file in info.files.iter() {
         let path = info.download_dir.join(&file.path);
         // file or subdirectory in download root must not exist if
@@ -187,29 +174,19 @@ impl Torrent {
         // exist, crate it.
         if let Some(subdir) = path.parent() {
           if !subdir.exists() {
-            log::info!(
-              "Creating torrent subdir {:?}",
-              subdir
-            );
-            fs::create_dir_all(subdir).map_err(
-              |e| {
-                log::error!(
-                  "Failed to create subdir {:?}",
-                  subdir
-                );
-                NewTorrentError::Io(e)
-              },
-            )?;
+            log::info!("Creating torrent subdir {:?}", subdir);
+            fs::create_dir_all(subdir).map_err(|e| {
+              log::error!("Failed to create subdir {:?}", subdir);
+              NewTorrentError::Io(e)
+            })?;
           }
         }
 
         // open the file and get a handle to it
-        torrent_files.push(sync::RwLock::new(
-          TorrentFile::new(
-            &info.download_dir,
-            file.clone(),
-          )?,
-        ));
+        torrent_files.push(sync::RwLock::new(TorrentFile::new(
+          &info.download_dir,
+          file.clone(),
+        )?));
       }
       torrent_files
     };
@@ -220,8 +197,7 @@ impl Torrent {
       thread_ctx: Arc::new(ThreadContext {
         tx: torrent_tx,
         read_cache: sync::Mutex::new(LruCache::new(
-          NonZeroUsize::new(READ_CACHE_UPPER_BOUND)
-            .unwrap(),
+          NonZeroUsize::new(READ_CACHE_UPPER_BOUND).unwrap(),
         )),
         files,
         stats: Stats::default(),
@@ -255,40 +231,30 @@ impl Torrent {
     if piece.is_complete() {
       // TODO: remove from in memory store only if the disk write
       // succeeded (otherwise we need to retry later).
-      let piece =
-        self.write_buf.remove(&piece_index).unwrap();
+      let piece = self.write_buf.remove(&piece_index).unwrap();
 
       log::debug!(
-                "Piece {} is complete ({} bytes), flushing {} block(s) to disk",
-                info.piece_index,
-                piece.len,
-                piece.blocks.len()
-            );
+        "Piece {} is complete ({} bytes), flushing {} block(s) to disk",
+        info.piece_index,
+        piece.len,
+        piece.blocks.len()
+      );
 
       // don't block the reactor with the potentially expensive hashing
       // and sync file writing.
-      let torrent_piece_offset =
-        self.info.torrent_piece_offset(piece_index);
+      let torrent_piece_offset = self.info.torrent_piece_offset(piece_index);
       let ctx = Arc::clone(&self.thread_ctx);
 
+      // create a new thread-green thread for writing the block.
       task::spawn_blocking(move || {
         let is_piece_valid = piece.match_hash();
 
         // save piece to disk if it's valid.
         if is_piece_valid {
-          log::debug!(
-            "Piece {} is valid, writing to disk",
-            piece_index
-          );
+          log::debug!("Piece {} is valid, writing to disk", piece_index);
 
-          if let Err(e) = piece
-            .write(torrent_piece_offset, &ctx.files)
-          {
-            log::error!(
-              "Error writing piece {} to disk: {}",
-              piece_index,
-              e
-            );
+          if let Err(e) = piece.write(torrent_piece_offset, &ctx.files) {
+            log::error!("Error writing piece {} to disk: {}", piece_index, e);
             ctx
               .stats
               .write_failure_count
@@ -297,48 +263,32 @@ impl Torrent {
             // alert torrent of block write failure.
             ctx
               .tx
-              .send(torrent::Command::PieceCompletion(
-                Err(e),
-              ))
+              .send(torrent::Command::PieceCompletion(Err(e)))
               .map_err(|e| {
-                log::error!(
-                  "Error sending piece result: {}",
-                  e
-                );
+                log::error!("Error sending piece result: {}", e);
                 e
               })
               .ok();
             return;
           }
-          log::debug!(
-            "Wrote piece {} to disk",
-            piece_index
-          );
-          ctx.stats.write_count.fetch_add(
-            piece.len as u64,
-            Ordering::Relaxed,
-          );
+          log::debug!("Wrote piece {} to disk", piece_index);
+          ctx
+            .stats
+            .write_count
+            .fetch_add(piece.len as u64, Ordering::Relaxed);
         } else {
-          log::warn!(
-            "Piece {} is not valid",
-            info.piece_index
-          );
+          log::warn!("Piece {} is not valid", info.piece_index);
         }
 
         // alert torrent of piece completion and hash result
         ctx
           .tx
-          .send(torrent::Command::PieceCompletion(Ok(
-            PieceCompletion {
-              index: piece_index,
-              is_valid: is_piece_valid,
-            },
-          )))
+          .send(torrent::Command::PieceCompletion(Ok(PieceCompletion {
+            index: piece_index,
+            is_valid: is_piece_valid,
+          })))
           .map_err(|e| {
-            log::error!(
-              "Error sending piece result: {}",
-              e
-            );
+            log::error!("Error sending piece result: {}", e);
             e
           })
           .ok();
@@ -352,14 +302,8 @@ impl Torrent {
   ///
   /// This involves getting the expected hash of the piece, its length, and
   /// calculating the files that it intersects.
-  fn start_new_piece(
-    &mut self,
-    piece_index: PieceIndex,
-  ) {
-    log::trace!(
-      "Creating piece {} write buffer",
-      piece_index
-    );
+  fn start_new_piece(&mut self, piece_index: PieceIndex) {
+    log::trace!("Creating piece {} write buffer", piece_index);
 
     assert!(
       piece_index < self.info.piece_count,
@@ -369,12 +313,9 @@ impl Torrent {
     // get the position of the piece in the concatenated hash string
     let hash_pos = piece_index * 20;
     // the above assert should take care of this, but just in case
-    debug_assert!(
-      hash_pos + 20 <= self.piece_hashes.len()
-    );
+    debug_assert!(hash_pos + 20 <= self.piece_hashes.len());
 
-    let hash_slice =
-      &self.piece_hashes[hash_pos..hash_pos + 20];
+    let hash_slice = &self.piece_hashes[hash_pos..hash_pos + 20];
     let mut expected_hash = [0; 20];
     expected_hash.copy_from_slice(hash_slice);
 
@@ -385,19 +326,10 @@ impl Torrent {
     );
 
     let len = self.info.piece_len(piece_index);
-    log::debug!(
-      "Piece {} is {} bytes long",
-      piece_index,
-      len
-    );
+    log::debug!("Piece {} is {} bytes long", piece_index, len);
 
-    let file_range =
-      self.info.files_intersecting_piece(piece_index);
-    log::debug!(
-      "Piece {} intersects files: {:?}",
-      piece_index,
-      file_range
-    );
+    let file_range = self.info.files_intersecting_piece(piece_index);
+    log::debug!("Piece {} intersects files: {:?}", piece_index, file_range);
 
     let piece = Piece {
       expected_hash,
@@ -438,17 +370,10 @@ impl Torrent {
     let block_index = block_info.index_in_piece();
 
     // check if piece is in the read cache
-    if let Some(blocks) = self
-      .thread_ctx
-      .read_cache
-      .lock()
-      .unwrap()
-      .get(&piece_index)
+    if let Some(blocks) =
+      self.thread_ctx.read_cache.lock().unwrap().get(&piece_index)
     {
-      log::debug!(
-        "Piece {} is in the read cache",
-        piece_index
-      );
+      log::debug!("Piece {} is in the read cache", piece_index);
       // the block's index in piece may be invalid
       if block_index >= blocks.len() {
         log::debug!(
@@ -456,41 +381,31 @@ impl Torrent {
           piece_index,
           block_info.offset
         );
-        self.thread_ctx.tx.send(
-          torrent::Command::ReadError {
-            block_info,
-            error: ReadError::InvalidBlockOffset,
-          },
-        )?;
+        self.thread_ctx.tx.send(torrent::Command::ReadError {
+          block_info,
+          error: ReadError::InvalidBlockOffset,
+        })?;
         // the disk task itself itself mustn't be aborted due to invalid input
         return Ok(());
       }
 
       // return block via sender
       let block = Arc::clone(&blocks[block_index]);
-      result_tx.send(Command::Block(Block::new(
-        block_info, block,
-      )))?;
+      result_tx.send(Command::Block(Block::new(block_info, block)))?;
 
       return Ok(());
     } else {
       // otherwise read in the piece from disk
-      log::debug!(
-        "Piece {} not in the piece from disk",
-        piece_index
-      );
+      log::debug!("Piece {} not in the piece from disk", piece_index);
 
-      let file_range = self
-        .info
-        .files_intersecting_piece(piece_index);
+      let file_range = self.info.files_intersecting_piece(piece_index);
 
       // Checking if the file pointed to by info has been downloaded yet
       // is done implicitly as part of the read operation below:
       // if we can't read any bytes, the file likely does not exist.
 
       // don't block the reactor with blocking disk IO
-      let torrent_piece_offset =
-        self.info.torrent_piece_offset(piece_index);
+      let torrent_piece_offset = self.info.torrent_piece_offset(piece_index);
 
       let piece_len = self.info.piece_len(piece_index);
       let ctx = Arc::clone(&self.thread_ctx);
@@ -504,47 +419,30 @@ impl Torrent {
           Ok(blocks) => {
             log::debug!("Read piece {}", piece_index);
             // pick requested block
-            let block =
-              Arc::clone(&blocks[block_index]);
+            let block = Arc::clone(&blocks[block_index]);
 
             // Place piece in read cache. Another concurrent read
             // could already have read the piece just before this
             // thread, but replacing it shouldn't be an issue since
             // we're reading the same data.
+            ctx.read_cache.lock().unwrap().put(piece_index, blocks);
             ctx
-              .read_cache
-              .lock()
-              .unwrap()
-              .put(piece_index, blocks);
-            ctx.stats.read_count.fetch_add(
-              piece_len as u64,
-              Ordering::Relaxed,
-            );
+              .stats
+              .read_count
+              .fetch_add(piece_len as u64, Ordering::Relaxed);
 
             // send block to peer
             result_tx
-              .send(Command::Block(Block::new(
-                block_info, block,
-              )))
+              .send(Command::Block(Block::new(block_info, block)))
               .map_err(|e| {
-                log::error!(
-                  "Error sending block to peer: {}",
-                  e
-                );
+                log::error!("Error sending block to peer: {}", e);
                 e
               })
               .ok();
           }
           Err(e) => {
-            log::error!(
-              "Error reading piece {} from disk: {}",
-              piece_index,
-              e
-            );
-            ctx
-              .stats
-              .read_failure_count
-              .fetch_add(1, Ordering::Relaxed);
+            log::error!("Error reading piece {} from disk: {}", piece_index, e);
+            ctx.stats.read_failure_count.fetch_add(1, Ordering::Relaxed);
             ctx
               .tx
               .send(torrent::Command::ReadError {
@@ -552,10 +450,7 @@ impl Torrent {
                 error: e,
               })
               .map_err(|e| {
-                log::error!(
-                  "Error sending read error: {}",
-                  e
-                );
+                log::error!("Error sending read error: {}", e);
                 e
               })
               .ok();

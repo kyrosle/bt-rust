@@ -23,6 +23,7 @@ sha1 = "0.10.5"
 # asynchronous crate
 tokio = { version = "1.25.0", features = ["full"] }
 tokio-util = { version = "0.7.4", features = ["codec"] }
+futures = "0.3.26"
 
 # http crate
 url = "2.3.1"
@@ -43,11 +44,22 @@ tempfile = "3.3.0"
 
 # encode from hex code
 hex = "0.4.3"
-futures = "0.3.26"
-pretty_assertions = "1.3.0"
-rand = "0.8.5"
+
+# global static statment
 once_cell = "1.17.0"
+
+# random engine
+rand = "0.8.5"
+
+# make assertions more readable
+pretty_assertions = "1.3.0"
+
+# TODO: using the nix::uio::Iovec is Deprecated, need fix to use IoSlice or IoSliceMut
+#       but the pwritev and the preadv still being used.
+# [target."cfg(target_os = \"linux\")".dependencies]
+# nix = "*"
+
 
 [dev-dependencies]
 # start local test serer
-mockito = "0.31.1"
+mockito = "0.32.3"

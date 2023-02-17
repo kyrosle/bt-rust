@@ -25,15 +25,11 @@ mod tests {
     // build up encoded byte string
     let mut encoded = Vec::new();
     encoded.extend_from_slice(b"d5:peers");
-    encoded.extend_from_slice(
-      &encode_compact_peers_list(&[(ip, port)]),
-    );
+    encoded.extend_from_slice(&encode_compact_peers_list(&[(ip, port)]));
     encoded.push(b'e');
 
-    let decoded: PeersResponse =
-      serde_bencode::from_bytes(&encoded).expect(
-        "cannot decode bencode string of peers",
-      );
+    let decoded: PeersResponse = serde_bencode::from_bytes(&encoded)
+      .expect("cannot decode bencode string of peers");
 
     let addr = SocketAddr::new(ip.into(), port);
 
@@ -70,18 +66,14 @@ mod tests {
       ],
     };
 
-    let encoded =
-      serde_bencode::to_string(&peers).unwrap();
+    let encoded = serde_bencode::to_string(&peers).unwrap();
 
-    let decoded: PeersResponse =
-      serde_bencode::from_str(&encoded)
-        .expect("cannot decode bencode list of peers");
+    let decoded: PeersResponse = serde_bencode::from_str(&encoded)
+      .expect("cannot decode bencode list of peers");
     let expected: Vec<_> = peers
       .peers
       .iter()
-      .map(|p| {
-        SocketAddr::new(p.ip.parse().unwrap(), p.port)
-      })
+      .map(|p| SocketAddr::new(p.ip.parse().unwrap(), p.port))
       .collect();
     assert_eq!(decoded.peers, expected);
   }
@@ -93,8 +85,7 @@ mod tests {
 
     let info_hash_str = "abcdefghij1234567890";
     let mut info_hash = [0; 20];
-    info_hash
-      .copy_from_slice(info_hash_str.as_bytes());
+    info_hash.copy_from_slice(info_hash_str.as_bytes());
 
     let peer_id_str = "cbt-2020-03-03-00000";
     let mut peer_id = [0; 20];
@@ -127,10 +118,7 @@ mod tests {
       min_interval: Some(Duration::from_secs(10)),
       seeder_count: Some(5),
       leecher_count: Some(3),
-      peers: vec![SocketAddr::new(
-        peer_ip.into(),
-        peer_port,
-      )],
+      peers: vec![SocketAddr::new(peer_ip.into(), peer_port)],
     };
 
     // expected_response -> bencode
@@ -145,11 +133,8 @@ mod tests {
     );
     // insert peers field into dict
     encoded_resp.extend_from_slice(b"5:peers");
-    encoded_resp.extend_from_slice(
-      &encode_compact_peers_list(&[(
-        peer_ip, peer_port,
-      )]),
-    );
+    encoded_resp
+      .extend_from_slice(&encode_compact_peers_list(&[(peer_ip, peer_port)]));
     // terminate dict
     encoded_resp.push(b'e');
 
@@ -158,34 +143,16 @@ mod tests {
     // both in bencode.
     let _m = mock("GET", "/")
       .match_query(Matcher::AllOf(vec![
-        Matcher::UrlEncoded(
-          "compact".into(),
-          "1".into(),
-        ),
-        Matcher::UrlEncoded(
-          "info_hash".into(),
-          info_hash_str.into(),
-        ),
-        Matcher::UrlEncoded(
-          "peer_id".into(),
-          peer_id_str.into(),
-        ),
-        Matcher::UrlEncoded(
-          "port".into(),
-          announce.port.to_string(),
-        ),
+        Matcher::UrlEncoded("compact".into(), "1".into()),
+        Matcher::UrlEncoded("info_hash".into(), info_hash_str.into()),
+        Matcher::UrlEncoded("peer_id".into(), peer_id_str.into()),
+        Matcher::UrlEncoded("port".into(), announce.port.to_string()),
         Matcher::UrlEncoded(
           "downloaded".into(),
           announce.downloaded.to_string(),
         ),
-        Matcher::UrlEncoded(
-          "uploaded".into(),
-          announce.uploaded.to_string(),
-        ),
-        Matcher::UrlEncoded(
-          "left".into(),
-          announce.left.to_string(),
-        ),
+        Matcher::UrlEncoded("uploaded".into(), announce.uploaded.to_string()),
+        Matcher::UrlEncoded("left".into(), announce.left.to_string()),
         Matcher::UrlEncoded(
           "numwant".into(),
           announce.peer_count.unwrap().to_string(),
@@ -195,32 +162,24 @@ mod tests {
       .with_body(encoded_resp)
       .create();
 
-    let resp =
-      tracker.announce(announce).await.unwrap();
+    let resp = tracker.announce(announce).await.unwrap();
     assert_eq!(resp, expected_resp);
   }
 
-  fn encode_compact_peers_list(
-    peers: &[(Ipv4Addr, u16)],
-  ) -> Vec<u8> {
+  fn encode_compact_peers_list(peers: &[(Ipv4Addr, u16)]) -> Vec<u8> {
     let encoded_peers: Vec<_> = peers
       .iter()
       .flat_map(|(ip, port)| {
         ip.octets()
           .iter()
-          .chain(
-            [(port >> 8) as u8, (port & 0xff) as u8]
-              .iter(),
-          )
+          .chain([(port >> 8) as u8, (port & 0xff) as u8].iter())
           .cloned()
           .collect::<Vec<_>>()
       })
       .collect();
 
     let mut encoded = Vec::new();
-    encoded.extend_from_slice(
-      encoded_peers.len().to_string().as_bytes(),
-    );
+    encoded.extend_from_slice(encoded_peers.len().to_string().as_bytes());
     encoded.push(b':');
     encoded.extend_from_slice(&encoded_peers);
 

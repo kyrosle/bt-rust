@@ -30,10 +30,7 @@ pub struct Metainfo {
 }
 
 impl fmt::Debug for Metainfo {
-  fn fmt(
-    &self,
-    f: &mut fmt::Formatter<'_>,
-  ) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("Metainfo")
       .field("name", &self.name)
       .field("info_hash", &self.info_hash)
@@ -56,8 +53,7 @@ impl Metainfo {
   /// - If having multi files, the `files` should not be empty.
   pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
     // parse the file and then do verification.
-    let metainfo: raw::Metainfo =
-      serde_bencode::from_bytes(bytes)?;
+    let metainfo: raw::Metainfo = serde_bencode::from_bytes(bytes)?;
 
     // the pieces field is a concatenation of 20 byte SHA-1 hashes, so it
     // must be a multiple of 20
@@ -83,9 +79,7 @@ impl Metainfo {
         len,
         torrent_offset: 0,
       });
-    } else if let Some(raw_files) =
-      &metainfo.info.files
-    {
+    } else if let Some(raw_files) = &metainfo.info.files {
       if raw_files.is_empty() {
         log::warn!("Metainfo files must not be empty");
         return Err(MetainfoError::InvalidMetainfo);
@@ -98,10 +92,7 @@ impl Metainfo {
       for file in raw_files.iter() {
         // verify the file length is non-zero
         if file.len == 0 {
-          log::warn!(
-            "File {:?} length is 0",
-            file.path
-          );
+          log::warn!("File {:?} length is 0", file.path);
           return Err(MetainfoError::InvalidMetainfo);
         }
 
@@ -146,11 +137,7 @@ impl Metainfo {
         .iter()
         .map(|t| t.len())
         .sum::<usize>()
-        + metainfo
-          .announce
-          .as_ref()
-          .map(|_| 1)
-          .unwrap_or_default();
+        + metainfo.announce.as_ref().map(|_| 1).unwrap_or_default();
       trackers.reserve(tracker_count);
 
       for announce in metainfo.announce_list.iter() {
@@ -158,18 +145,14 @@ impl Metainfo {
           let url = Url::parse(tracker)?;
 
           // may use UDP ???
-          if url.scheme() == "http"
-            || url.scheme() == "https"
-          {
+          if url.scheme() == "http" || url.scheme() == "https" {
             trackers.push(url);
           }
         }
       }
     } else if let Some(tracker) = &metainfo.announce {
       let url = Url::parse(tracker)?;
-      if url.scheme() == "http"
-        || url.scheme() == "https"
-      {
+      if url.scheme() == "http" || url.scheme() == "https" {
         trackers.push(url);
       }
     }

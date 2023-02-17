@@ -36,9 +36,7 @@ use crate::{
   Bitfield, PeerId, PieceIndex, Sha1Hash, TorrentId,
 };
 
-use self::stats::{
-  Peers, PieceStats, ThruputStats, TorrentStats,
-};
+use self::stats::{Peers, PieceStats, ThruputStats, TorrentStats};
 
 pub mod stats;
 
@@ -116,8 +114,7 @@ pub struct TorrentContext {
   /// Peer sessions may be run on different threads, any of which may read and
   /// write to this map and to the pieces in the map. Thus we need to read
   /// write lock on both.
-  pub downloads:
-    RwLock<HashMap<PieceIndex, RwLock<PieceDownload>>>,
+  pub downloads: RwLock<HashMap<PieceIndex, RwLock<PieceDownload>>>,
 
   /// The channel on which to post alerts to user.
   pub alert_tx: AlertSender,
@@ -227,16 +224,12 @@ impl Torrent {
 
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
     let piece_picker = PiecePicker::new(own_pieces);
-    let trackers = trackers
-      .into_iter()
-      .map(TrackerEntry::new)
-      .collect();
-    let completed_pieces =
-      if conf.alerts.completed_pieces {
-        Some(Vec::new())
-      } else {
-        None
-      };
+    let trackers = trackers.into_iter().map(TrackerEntry::new).collect();
+    let completed_pieces = if conf.alerts.completed_pieces {
+      Some(Vec::new())
+    } else {
+      None
+    };
 
     (
       Self {
@@ -247,9 +240,7 @@ impl Torrent {
           info_hash,
           client_id,
           cmd_tx: cmd_tx.clone(),
-          piece_picker: Arc::new(RwLock::new(
-            piece_picker,
-          )),
+          piece_picker: Arc::new(RwLock::new(piece_picker)),
           downloads: RwLock::new(HashMap::new()),
           alert_tx,
           disk_tx,
@@ -269,10 +260,7 @@ impl Torrent {
     )
   }
 
-  pub async fn start(
-    &mut self,
-    peers: &[SocketAddr],
-  ) -> TorrentResult<()> {
+  pub async fn start(&mut self, peers: &[SocketAddr]) -> TorrentResult<()> {
     log::info!("Starting torrent");
 
     self.available_peers.extend_from_slice(peers);
@@ -282,24 +270,15 @@ impl Torrent {
 
     // if the torrent is a seed, don't send the started event,
     // just an empty announce.
-    let tracker_event = if self
-      .ctx
-      .piece_picker
-      .read()
-      .await
-      .missing_piece_count()
-      == 0
-    {
-      None
-    } else {
-      Some(Event::Started)
-    };
+    let tracker_event =
+      if self.ctx.piece_picker.read().await.missing_piece_count() == 0 {
+        None
+      } else {
+        Some(Event::Started)
+      };
 
     if let Err(e) = self
-      .announce_to_trackers(
-        Instant::now(),
-        tracker_event,
-      )
+      .announce_to_trackers(Instant::now(), tracker_event)
       .await
     {
       // this is a torrent error, not a tracker error,
@@ -330,12 +309,10 @@ impl Torrent {
   }
 
   async fn run(&mut self) -> TorrentResult<()> {
-    let mut tick_timer =
-      time::interval(Duration::from_secs(1));
+    let mut tick_timer = time::interval(Duration::from_secs(1));
     let mut last_tick_time = None;
 
-    let listener =
-      TcpListener::bind(&self.listen_addr).await?;
+    let listener = TcpListener::bind(&self.listen_addr).await?;
 
     // the bind port may have be 0, so we need to get the actually
     // port in use.
@@ -454,29 +431,26 @@ impl Torrent {
     self.announce_to_trackers(now, event).await?;
 
     log::debug!(
-            "Stats: \
+      "Stats: \
             elapsed {} s, \
             download: {} b/s (peak: {} b/s, total: {} b) wasted: {} b \
             upload: {} b/s (peak: {} b/s, total: {} b)",
-            self.run_duration.as_secs(),
-            self.counters.payload.down.avg(),
-            self.counters.payload.down.peak(),
-            self.counters.payload.down.total(),
-            self.counters.waste.total(),
-            self.counters.payload.up.avg(),
-            self.counters.payload.up.peak(),
-            self.counters.payload.up.total(),
-        );
+      self.run_duration.as_secs(),
+      self.counters.payload.down.avg(),
+      self.counters.payload.down.peak(),
+      self.counters.payload.down.total(),
+      self.counters.waste.total(),
+      self.counters.payload.up.avg(),
+      self.counters.payload.up.peak(),
+      self.counters.payload.up.total(),
+    );
 
     // TODO: consider removing this check, it's expensive, or caching it
     // in piece picker.
     if log::log_enabled!(log::Level::Debug) {
-      let piece_picker_guard =
-        self.ctx.piece_picker.read().await;
-      let unavailable_piece_count = piece_picker_guard
-        .pieces()
-        .iter()
-        .fold(0, |acc, piece| {
+      let piece_picker_guard = self.ctx.piece_picker.read().await;
+      let unavailable_piece_count =
+        piece_picker_guard.pieces().iter().fold(0, |acc, piece| {
           if piece.frequency == 0 {
             acc + 1
           } else {
@@ -485,9 +459,9 @@ impl Torrent {
         });
       if unavailable_piece_count > 0 {
         log::debug!(
-                    "Torrent swarm doesn't have all pieces (missing: {})",
-                    unavailable_piece_count
-                );
+          "Torrent swarm doesn't have all pieces (missing: {})",
+          unavailable_piece_count
+        );
       }
     }
 
@@ -519,20 +493,13 @@ impl Torrent {
       return;
     }
 
-    log::debug!(
-      "Connecting {} peer(s)",
-      connect_count
-    );
-    for addr in
-      self.available_peers.drain(0..connect_count)
-    {
+    log::debug!("Connecting {} peer(s)", connect_count);
+    for addr in self.available_peers.drain(0..connect_count) {
       log::info!("Connecting to peer {}", addr);
-      let (session, tx) =
-        PeerSession::new(Arc::clone(&self.ctx), addr);
-      self.peers.insert(
-        addr,
-        PeerSessionEntity::start_outbound(session, tx),
-      );
+      let (session, tx) = PeerSession::new(Arc::clone(&self.ctx), addr);
+      self
+        .peers
+        .insert(addr, PeerSessionEntity::start_outbound(session, tx));
     }
   }
 
@@ -545,62 +512,42 @@ impl Torrent {
   ) -> TorrentResult<()> {
     // calculate transfer statistics in advance
     let uploaded = self.counters.payload.up.total();
-    let downloaded =
-      self.counters.payload.down.total();
-    let left =
-      self.ctx.storage.download_len - downloaded;
+    let downloaded = self.counters.payload.down.total();
+    let left = self.ctx.storage.download_len - downloaded;
 
     // skip trackers that errored too often.
     // TODO: introduce a retry timeout
-    let tracker_error_threshold =
-      self.conf.tracker_error_threshold;
-    for tracker in
-      self.trackers.iter_mut().filter(|t| {
-        t.error_count < tracker_error_threshold
-      })
+    let tracker_error_threshold = self.conf.tracker_error_threshold;
+    for tracker in self
+      .trackers
+      .iter_mut()
+      .filter(|t| t.error_count < tracker_error_threshold)
     {
       // Check if the torrent's peer has fallen below the minimum.
       // But don't request new peers otherwise or if we're about
       // to stop torrent.
-      let peer_count =
-        self.peers.len() + self.available_peers.len();
+      let peer_count = self.peers.len() + self.available_peers.len();
       let needed_peer_count = if peer_count
         >= self.conf.min_requested_peer_count
         || event == Some(Event::Stopped)
       {
         None
       } else {
-        debug_assert!(
-          self.conf.max_connected_peer_count
-            >= peer_count
-        );
-        let needed =
-          self.conf.max_connected_peer_count
-            - peer_count;
+        debug_assert!(self.conf.max_connected_peer_count >= peer_count);
+        let needed = self.conf.max_connected_peer_count - peer_count;
         // Download at least this number of peers, even if we don't
         // need as many. This is because later we may be able to connect
         // to more peers and in that case we don't want to wait till the
         // next tracer request.
-        Some(
-          self
-            .conf
-            .min_requested_peer_count
-            .max(needed),
-        )
+        Some(self.conf.min_requested_peer_count.max(needed))
       };
 
       // we can override the normal announce interval if we need peers or
       // if we have an event to announce
       if event.is_some()
         || (needed_peer_count > Some(0))
-          && tracker.can_announce(
-            now,
-            self.conf.announce_interval,
-          )
-        || tracker.should_announce(
-          now,
-          self.conf.announce_interval,
-        )
+          && tracker.can_announce(now, self.conf.announce_interval)
+        || tracker.should_announce(now, self.conf.announce_interval)
       {
         let params = Announce {
           tracker_id: tracker.id.clone(),
@@ -618,16 +565,14 @@ impl Torrent {
         match tracker.client.announce(params).await {
           Ok(resp) => {
             log::info!(
-                            "Announced to tracker {}, response: {:?}",
-                            tracker.client,
-                            resp
-                        );
+              "Announced to tracker {}, response: {:?}",
+              tracker.client,
+              resp
+            );
             if let Some(tracker_id) = resp.tracker_id {
               tracker.id = Some(tracker_id);
             }
-            if let Some(failure_reason) =
-              resp.failure_reason
-            {
+            if let Some(failure_reason) = resp.failure_reason {
               log::warn!(
                 "Error contacting tracker {}: {}",
                 tracker.client,
@@ -635,9 +580,7 @@ impl Torrent {
               );
             }
 
-            if let Some(warning_message) =
-              resp.warning_message
-            {
+            if let Some(warning_message) = resp.warning_message {
               log::warn!(
                 "Warning contacting tracker {}: {}",
                 tracker.client,
@@ -652,22 +595,16 @@ impl Torrent {
               );
               tracker.interval = Some(interval);
             }
-            if let Some(min_interval) =
-              resp.min_interval
-            {
+            if let Some(min_interval) = resp.min_interval {
               log::info!(
                 "Tracker {} min min_interval: {} s",
                 tracker.client,
                 min_interval.as_secs()
               );
-              tracker.min_interval =
-                Some(min_interval);
+              tracker.min_interval = Some(min_interval);
             }
 
-            if let (
-              Some(seeder_count),
-              Some(leecher_count),
-            ) =
+            if let (Some(seeder_count), Some(leecher_count)) =
               (resp.seeder_count, resp.leecher_count)
             {
               log::debug!(
@@ -683,25 +620,17 @@ impl Torrent {
                 tracker.client,
                 resp.peers
               );
-              self
-                .available_peers
-                .extend(resp.peers.into_iter());
+              self.available_peers.extend(resp.peers.into_iter());
             }
           }
           Err(e) => {
-            log::warn!(
-              "Error announcing to tracker {}: {}",
-              tracker.client,
-              e
-            );
+            log::warn!("Error announcing to tracker {}: {}", tracker.client, e);
 
             tracker.error_count += 1;
-            self.ctx.alert_tx.send(Alert::Error(
-              Error::Tracker {
-                id: self.ctx.id,
-                error: e,
-              },
-            ))?;
+            self.ctx.alert_tx.send(Alert::Error(Error::Tracker {
+              id: self.ctx.id,
+              error: e,
+            }))?;
           }
         }
 
@@ -713,17 +642,10 @@ impl Torrent {
 
   /// Returns high-level statistics about the torrent for sending to the user.
   async fn build_stats(&mut self) -> TorrentStats {
-    let missing_piece_count = self
-      .ctx
-      .piece_picker
-      .read()
-      .await
-      .missing_piece_count();
+    let missing_piece_count =
+      self.ctx.piece_picker.read().await.missing_piece_count();
     let piece_count = self.ctx.storage.piece_count;
-    let completed_pieces = self
-      .completed_pieces
-      .as_mut()
-      .map(std::mem::take);
+    let completed_pieces = self.completed_pieces.as_mut().map(std::mem::take);
     let peers = if self.conf.alerts.peers {
       let peers = self
         .peers
@@ -762,33 +684,23 @@ impl Torrent {
   /// torrent in order to perform various pieces of logic (the choke
   /// algorithm and detailed reporting to user, neither of which is done at
   /// the moment).
-  fn handle_peer_state_change(
-    &mut self,
-    addr: SocketAddr,
-    info: SessionTick,
-  ) {
+  fn handle_peer_state_change(&mut self, addr: SocketAddr, info: SessionTick) {
     if let Some(peer) = self.peers.get_mut(&addr) {
       log::debug!("Updating peer {} state", addr);
 
       peer.state = info.state;
       peer.piece_count = info.piece_count;
-      peer.thruput =
-        ThruputStats::from(&info.counters);
+      peer.thruput = ThruputStats::from(&info.counters);
 
       // update torrent thruput stats
       self.counters += &info.counters;
 
       // if we disconnected peer, remove it
-      if peer.state.connection
-        == ConnectionState::Disconnected
-      {
+      if peer.state.connection == ConnectionState::Disconnected {
         self.peers.remove(&addr);
       }
     } else {
-      log::debug!(
-        "Tried updating non-existent peer {}",
-        addr
-      );
+      log::debug!("Tried updating non-existent peer {}", addr);
     }
   }
 
@@ -802,21 +714,13 @@ impl Torrent {
     // check torrent completion
     if piece.is_valid {
       // remove download entry
-      self
-        .ctx
-        .downloads
-        .write()
-        .await
-        .remove(&piece.index);
+      self.ctx.downloads.write().await.remove(&piece.index);
 
       // register piece in piece picker
-      let mut piece_picker_write_guard =
-        self.ctx.piece_picker.write().await;
+      let mut piece_picker_write_guard = self.ctx.piece_picker.write().await;
 
-      piece_picker_write_guard
-        .received_piece(piece.index);
-      let missing_piece_count =
-        piece_picker_write_guard.missing_piece_count();
+      piece_picker_write_guard.received_piece(piece.index);
+      let missing_piece_count = piece_picker_write_guard.missing_piece_count();
 
       // Even if we don't have all pieces,
       // they may all have already been picked.
@@ -838,9 +742,7 @@ impl Torrent {
         missing_piece_count
       );
 
-      if let Some(latest_completed_pieces) =
-        &mut self.completed_pieces
-      {
+      if let Some(latest_completed_pieces) = &mut self.completed_pieces {
         latest_completed_pieces.push(piece.index);
       }
 
@@ -863,11 +765,11 @@ impl Torrent {
       // if the torrent is fully downloaded, stop the download loop
       if missing_piece_count == 0 {
         log::info!(
-                    "Finished torrent download, exiting. \
+          "Finished torrent download, exiting. \
                     Peak download rate: {} b/s, wasted: {} b",
-                    self.counters.payload.down.peak(),
-                    self.counters.waste.total()
-                );
+          self.counters.payload.down.peak(),
+          self.counters.waste.total()
+        );
 
         // notify user of torrent completion
         self
@@ -878,23 +780,14 @@ impl Torrent {
 
         // tell trackers we've finished
         self
-          .announce_to_trackers(
-            Instant::now(),
-            Some(Event::Completed),
-          )
+          .announce_to_trackers(Instant::now(), Some(Event::Completed))
           .await?;
       }
     } else {
       // implement parole mode for the peers that sent corrupt data
       log::warn!("Piece {} is invalid", piece.index,);
       // mark all blocks free to be requested in piece.
-      if let Some(piece) = self
-        .ctx
-        .downloads
-        .read()
-        .await
-        .get(&piece.index)
-      {
+      if let Some(piece) = self.ctx.downloads.read().await.get(&piece.index) {
         piece.write().await.free_all_blocks();
       }
     }
@@ -926,10 +819,7 @@ impl Torrent {
     }
 
     self
-      .announce_to_trackers(
-        Instant::now(),
-        Some(Event::Stopped),
-      )
+      .announce_to_trackers(Instant::now(), Some(Event::Stopped))
       .await
   }
 }
@@ -955,18 +845,13 @@ struct PeerSessionEntity {
   thruput: ThruputStats,
 
   /// The peer session task's join handle, used during shutdown.
-  join_handle:
-    Option<task::JoinHandle<PeerResult<()>>>,
+  join_handle: Option<task::JoinHandle<PeerResult<()>>>,
 }
 
 impl PeerSessionEntity {
-  fn start_outbound(
-    mut session: PeerSession,
-    tx: peer::Sender,
-  ) -> Self {
-    let join_handle = task::spawn(async move {
-      session.start_outbound().await
-    });
+  fn start_outbound(mut session: PeerSession, tx: peer::Sender) -> Self {
+    let join_handle =
+      task::spawn(async move { session.start_outbound().await });
     PeerSessionEntity::new(tx, join_handle)
   }
 
@@ -975,9 +860,8 @@ impl PeerSessionEntity {
     mut session: PeerSession,
     tx: peer::Sender,
   ) -> Self {
-    let join_handle = task::spawn(async move {
-      session.start_inbound(socket).await
-    });
+    let join_handle =
+      task::spawn(async move { session.start_inbound(socket).await });
     PeerSessionEntity::new(tx, join_handle)
   }
 
@@ -1041,13 +925,9 @@ impl TrackerEntry {
     t: Instant,
     default_announce_interval: Duration,
   ) -> bool {
-    if let Some(last_announce_time) =
-      self.last_announce_time
-    {
-      let min_next_announce_time = last_announce_time
-        + self
-          .interval
-          .unwrap_or(default_announce_interval);
+    if let Some(last_announce_time) = self.last_announce_time {
+      let min_next_announce_time =
+        last_announce_time + self.interval.unwrap_or(default_announce_interval);
       t > min_next_announce_time
     } else {
       true
@@ -1064,13 +944,9 @@ impl TrackerEntry {
     t: Instant,
     default_announce_interval: Duration,
   ) -> bool {
-    if let Some(last_announce_time) =
-      self.last_announce_time
-    {
+    if let Some(last_announce_time) = self.last_announce_time {
       let min_next_announce_time = last_announce_time
-        + self
-          .min_interval
-          .unwrap_or(default_announce_interval);
+        + self.min_interval.unwrap_or(default_announce_interval);
       t > min_next_announce_time
     } else {
       true

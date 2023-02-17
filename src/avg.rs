@@ -71,12 +71,11 @@ impl SlidingAvg {
       self.sample_count += 1;
     }
 
-    self.mean +=
-      (sample - self.mean) / self.sample_count as i64;
+    self.mean += (sample - self.mean) / self.sample_count as i64;
 
     if self.sample_count > 1 {
-      self.deviation += (deviation - self.deviation)
-        / (self.sample_count - 1) as i64;
+      self.deviation +=
+        (deviation - self.deviation) / (self.sample_count - 1) as i64;
     }
   }
 
@@ -115,10 +114,7 @@ impl SlidingDurationAvg {
   }
 
   pub fn update(&mut self, sample: Duration) {
-    let ms = sample
-      .as_millis()
-      .try_into()
-      .expect("Millisecond overflow");
+    let ms = sample.as_millis().try_into().expect("Millisecond overflow");
     self.0.update(ms);
   }
 

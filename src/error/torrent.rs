@@ -1,8 +1,7 @@
 use tokio::io::Error as IoError;
 use tokio::sync::mpsc::error::SendError;
 
-pub type Result<T, E = TorrentError> =
-  std::result::Result<T, E>;
+pub type Result<T, E = TorrentError> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TorrentError {

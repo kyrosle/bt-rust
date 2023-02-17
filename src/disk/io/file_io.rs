@@ -31,8 +31,7 @@ impl TorrentFile {
     file_slice: FileSlice,
     blocks: &'a mut [IoVec],
   ) -> Result<&'a mut [IoVec], WriteError> {
-    let iovecs =
-      IoVecs::bounded(blocks, file_slice.len as usize);
+    let iovecs = IoVecs::bounded(blocks, file_slice.len as usize);
     //println!("iovecs: {iovecs:?}");
     // the write buffer cannot be larger than the file slice we want to write to.
     debug_assert!(
@@ -81,16 +80,9 @@ impl TorrentFile {
     // );
     self
       .handle
-      .seek_write(
-        iovecs.as_u8_vec().as_slice(),
-        file_slice.offset,
-      )
+      .seek_write(iovecs.as_u8_vec().as_slice(), file_slice.offset)
       .map_err(|e| {
-        log::trace!(
-          "File {:?} write error: {}",
-          self.info.path,
-          e
-        );
+        log::trace!("File {:?} write error: {}", self.info.path, e);
         WriteError::Io(std::io::Error::last_os_error())
       })?;
 
@@ -145,11 +137,7 @@ impl TorrentFile {
       .handle
       .seek_read(&mut data, file_slice.offset)
       .map_err(|e| {
-        log::warn!(
-          "File {:?} read error: {}",
-          self.info.path,
-          e
-        );
+        log::warn!("File {:?} read error: {}", self.info.path, e);
         ReadError::Io(std::io::Error::last_os_error())
       })?;
 

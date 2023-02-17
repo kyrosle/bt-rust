@@ -7,25 +7,15 @@ pub mod tracker;
 
 use std::net::SocketAddr;
 
-pub use disk::{
-  NewTorrentError, ReadError, Result as DiskResult,
-  WriteError,
-};
+pub use disk::{NewTorrentError, ReadError, Result as DiskResult, WriteError};
 pub use peer::{PeerError, Result as PeerResult};
-pub use tokio::{
-  io::Error as IoError, sync::mpsc::error::SendError,
-};
-pub use torrent::{
-  Result as TorrentResult, TorrentError,
-};
-pub use tracker::{
-  Result as TrackerResult, TrackerError,
-};
+pub use tokio::{io::Error as IoError, sync::mpsc::error::SendError};
+pub use torrent::{Result as TorrentResult, TorrentError};
+pub use tracker::{Result as TrackerResult, TrackerError};
 
 use crate::TorrentId;
 
-pub type EngineResult<T, E = Error> =
-  std::result::Result<T, E>;
+pub type EngineResult<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]

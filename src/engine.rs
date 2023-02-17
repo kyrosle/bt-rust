@@ -16,9 +16,7 @@ use std::{
 };
 
 use tokio::{
-  sync::mpsc::{
-    self, UnboundedReceiver, UnboundedSender,
-  },
+  sync::mpsc::{self, UnboundedReceiver, UnboundedSender},
   task,
 };
 
@@ -26,10 +24,7 @@ use crate::{
   alert::{AlertReceiver, AlertSender},
   conf::{Conf, TorrentConf},
   disk::{self, JoinHandle},
-  error::{
-    EngineResult, Error, NewTorrentError,
-    TorrentResult,
-  },
+  error::{EngineResult, Error, NewTorrentError, TorrentResult},
   metainfo::Metainfo,
   storage_info::StorageInfo,
   torrent::{self, Torrent},
@@ -70,17 +65,14 @@ pub enum Command {
 /// The return value is a tuple of an [`EngineHandle`], with may be used to
 /// send the engine commands, and an [`AlertReceiver`], to which
 /// various components in the engine will send alerts of events.
-pub fn spawn(
-  conf: Conf,
-) -> EngineResult<(EngineHandle, AlertReceiver)> {
+pub fn spawn(conf: Conf) -> EngineResult<(EngineHandle, AlertReceiver)> {
   log::info!("Spawning engine task");
 
   // crate alert channels and return alert port to user
   let (alert_tx, alert_rx) = mpsc::unbounded_channel();
   let (mut engine, tx) = Engine::new(conf, alert_tx)?;
 
-  let join_handle =
-    task::spawn(async move { engine.run().await });
+  let join_handle = task::spawn(async move { engine.run().await });
   log::info!("Spawning engine task");
 
   Ok((
@@ -120,17 +112,10 @@ pub enum Mode {
 }
 
 impl Mode {
-  fn own_pieces(
-    &self,
-    piece_count: usize,
-  ) -> Bitfield {
+  fn own_pieces(&self, piece_count: usize) -> Bitfield {
     match self {
-      Mode::Download { .. } => {
-        Bitfield::repeat(false, piece_count)
-      }
-      Mode::Seed => {
-        Bitfield::repeat(true, piece_count)
-      }
+      Mode::Download { .. } => Bitfield::repeat(false, piece_count),
+      Mode::Seed => Bitfield::repeat(true, piece_count),
     }
   }
 
@@ -167,19 +152,14 @@ struct TorrentEntry {
   /// The torrent's command channel on which engine sends commands to torrent.
   tx: torrent::Sender,
   /// The torrent task's join handle, used during shutdown.
-  join_handle:
-    Option<task::JoinHandle<TorrentResult<()>>>,
+  join_handle: Option<task::JoinHandle<TorrentResult<()>>>,
 }
 
 impl Engine {
   /// Creates a new engine, spawning the disk task.
-  fn new(
-    conf: Conf,
-    alert_tx: AlertSender,
-  ) -> EngineResult<(Self, Sender)> {
+  fn new(conf: Conf, alert_tx: AlertSender) -> EngineResult<(Self, Sender)> {
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
-    let (disk_join_handle, disk_tx) =
-      disk::spawn(cmd_tx.clone())?;
+    let (disk_join_handle, disk_tx) = disk::spawn(cmd_tx.clone())?;
 
     Ok((
       Engine {
@@ -202,23 +182,14 @@ impl Engine {
         Command::CreateTorrent { id, params } => {
           self.create_torrent(id, params).await?
         }
-        Command::TorrentAllocation { id, result } => {
-          match result {
-            Ok(_) => {
-              log::info!(
-                "Torrent {} allocated on disk",
-                id
-              );
-            }
-            Err(e) => {
-              log::error!(
-                            "Error allocating torrent {} on disk: {}", 
-                            id,
-                            e
-                        );
-            }
+        Command::TorrentAllocation { id, result } => match result {
+          Ok(_) => {
+            log::info!("Torrent {} allocated on disk", id);
           }
-        }
+          Err(e) => {
+            log::error!("Error allocating torrent {} on disk: {}", id, e);
+          }
+        },
         Command::Shutdown => {
           self.shutdown().await?;
           break;
@@ -235,13 +206,9 @@ impl Engine {
     id: TorrentId,
     params: Box<TorrentParams>,
   ) -> EngineResult<()> {
-    let conf = params
-      .conf
-      .unwrap_or_else(|| self.conf.torrent.clone());
-    let storage_info = StorageInfo::new(
-      &params.metainfo,
-      self.conf.engine.download_dir.clone(),
-    );
+    let conf = params.conf.unwrap_or_else(|| self.conf.torrent.clone());
+    let storage_info =
+      StorageInfo::new(&params.metainfo, self.conf.engine.download_dir.clone());
 
     // TODO: don't duplicate trackers if multiple torrents use the same
     // ones (common in practice)
@@ -252,34 +219,27 @@ impl Engine {
       .map(Tracker::new)
       .collect::<Vec<_>>();
 
-    let own_pieces =
-      params.mode.own_pieces(storage_info.piece_count);
+    let own_pieces = params.mode.own_pieces(storage_info.piece_count);
 
     // crate and spawn torrent
     // TODO: For now we spawn automatically, but later we add torrent
     // pause/restart APIs, this will be separate step. There should be
     // a `start` flag in `params` that says whether to immediately spawn
     // a new torrent (or maybe in `TorrentConf`).
-    let (mut torrent, torrent_tx) =
-      Torrent::new(torrent::Params {
-        id,
-        disk_tx: self.disk_tx.clone(),
-        info_hash: params.metainfo.info_hash,
-        storage_info: storage_info.clone(),
-        own_pieces,
-        trackers,
-        client_id: self.conf.engine.client_id,
-        listen_addr: params
-          .listen_addr
-          .unwrap_or_else(|| {
-            SocketAddr::new(
-              Ipv4Addr::UNSPECIFIED.into(),
-              0,
-            )
-          }),
-        conf,
-        alert_tx: self.alert_tx.clone(),
-      });
+    let (mut torrent, torrent_tx) = Torrent::new(torrent::Params {
+      id,
+      disk_tx: self.disk_tx.clone(),
+      info_hash: params.metainfo.info_hash,
+      storage_info: storage_info.clone(),
+      own_pieces,
+      trackers,
+      client_id: self.conf.engine.client_id,
+      listen_addr: params
+        .listen_addr
+        .unwrap_or_else(|| SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0)),
+      conf,
+      alert_tx: self.alert_tx.clone(),
+    });
 
     // Allocate torrent on disk. This is an asynchronous process and we can
     // start the torrent in the meantime.
@@ -304,9 +264,7 @@ impl Engine {
     })?;
 
     let seeds = params.mode.seeds();
-    let join_handle = task::spawn(async move {
-      torrent.start(&seeds).await
-    });
+    let join_handle = task::spawn(async move { torrent.start(&seeds).await });
 
     self.torrents.insert(
       id,

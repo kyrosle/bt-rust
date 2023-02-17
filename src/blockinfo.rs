@@ -5,16 +5,7 @@ use crate::{PieceIndex, BLOCK_LEN};
 /// A block is a fixed size chunk of a piece, which in turn is a fixed size
 /// chunk of a content. Downloading torrents happen at this block level
 /// granularity.
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  PartialEq,
-  Eq,
-  PartialOrd,
-  Ord,
-  Hash,
-)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockInfo {
   /// The index of the piece of which this is a block.
   pub piece_index: PieceIndex,
@@ -38,10 +29,7 @@ impl BlockInfo {
 }
 
 impl fmt::Display for BlockInfo {
-  fn fmt(
-    &self,
-    f: &mut fmt::Formatter<'_>,
-  ) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(
       f,
       "(piece: {} offset: {} len: {})",
@@ -59,10 +47,7 @@ impl fmt::Display for BlockInfo {
 ///
 /// Panics if the index multiplied by the default block length would exceed the
 /// piece length.
-pub fn block_len(
-  piece_len: u32,
-  block_index: usize,
-) -> u32 {
+pub fn block_len(piece_len: u32, block_index: usize) -> u32 {
   let block_index = block_index as u32;
   let block_offset = block_index * BLOCK_LEN;
   assert!(piece_len > block_offset);
@@ -74,8 +59,7 @@ pub fn block_count(piece_len: u32) -> usize {
   // all but the last piece are a multiple of the block length,
   // but the last piece may be shorter so we need to account for this
   // by rounding up before dividing to get the number of blocks in piece.
-  (piece_len as usize + (BLOCK_LEN as usize - 1))
-    / BLOCK_LEN as usize
+  (piece_len as usize + (BLOCK_LEN as usize - 1)) / BLOCK_LEN as usize
 }
 
 pub struct Block {
@@ -142,39 +126,22 @@ mod tests {
 
   // An arbitrary piece length that is an exact multiple of the canonical
   // block length (16 KiB).
-  const BLOCK_LEN_MULTIPLE_PIECE_LEN: u32 =
-    2 * BLOCK_LEN;
+  const BLOCK_LEN_MULTIPLE_PIECE_LEN: u32 = 2 * BLOCK_LEN;
 
   // An arbitrary piece length that is _not_ a multiple of the canonical block
   // length and the amount with which it overlaps the nearest exact multiple
   // value.
   const OVERLAP: u32 = 234;
-  const UNEVEN_PIECE_LEN: u32 =
-    2 * BLOCK_LEN + OVERLAP;
+  const UNEVEN_PIECE_LEN: u32 = 2 * BLOCK_LEN + OVERLAP;
 
   #[test]
   fn test_block_len() {
-    assert_eq!(
-      block_len(BLOCK_LEN_MULTIPLE_PIECE_LEN, 0),
-      BLOCK_LEN
-    );
-    assert_eq!(
-      block_len(BLOCK_LEN_MULTIPLE_PIECE_LEN, 1),
-      BLOCK_LEN
-    );
+    assert_eq!(block_len(BLOCK_LEN_MULTIPLE_PIECE_LEN, 0), BLOCK_LEN);
+    assert_eq!(block_len(BLOCK_LEN_MULTIPLE_PIECE_LEN, 1), BLOCK_LEN);
 
-    assert_eq!(
-      block_len(UNEVEN_PIECE_LEN, 0),
-      BLOCK_LEN
-    );
-    assert_eq!(
-      block_len(UNEVEN_PIECE_LEN, 1),
-      BLOCK_LEN
-    );
-    assert_eq!(
-      block_len(UNEVEN_PIECE_LEN, 2),
-      OVERLAP
-    );
+    assert_eq!(block_len(UNEVEN_PIECE_LEN, 0), BLOCK_LEN);
+    assert_eq!(block_len(UNEVEN_PIECE_LEN, 1), BLOCK_LEN);
+    assert_eq!(block_len(UNEVEN_PIECE_LEN, 2), OVERLAP);
   }
 
   #[test]
@@ -185,10 +152,7 @@ mod tests {
 
   #[test]
   fn test_block_count() {
-    assert_eq!(
-      block_count(BLOCK_LEN_MULTIPLE_PIECE_LEN),
-      2
-    );
+    assert_eq!(block_count(BLOCK_LEN_MULTIPLE_PIECE_LEN), 2);
 
     assert_eq!(block_count(UNEVEN_PIECE_LEN), 3);
   }

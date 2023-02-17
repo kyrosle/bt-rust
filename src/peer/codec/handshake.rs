@@ -3,8 +3,7 @@ use std::io::{self, Cursor};
 use bytes::{Buf, BufMut};
 use tokio_util::codec::{Decoder, Encoder};
 
-pub const PROTOCOL_STRING: &str =
-  "BitTorrent protocol";
+pub const PROTOCOL_STRING: &str = "BitTorrent protocol";
 /// The message sent at the beginning of a peer session by both
 /// sides of the connection.
 ///
@@ -13,7 +12,7 @@ pub const PROTOCOL_STRING: &str =
 /// ```txt
 /// <Protocol Identify length><Protocol Identify><Reversed><Info_hash> <Peer_id>
 ///
-/// |   ---- 8 bytes ----    |-----19 bytes----|-8 bytes-|-20 bytes-|-20 bytes-|
+/// |   ---- 8 bytes ----    |-----19 bytes----  |-8 bytes|-20 bytes-|-20 bytes-|
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Handshake {
@@ -32,10 +31,7 @@ pub struct Handshake {
 
 impl Handshake {
   /// Create a new protocol version 1 handshake with the given info_hash and peer_id.
-  pub fn new(
-    info_hash: [u8; 20],
-    peer_id: [u8; 20],
-  ) -> Self {
+  pub fn new(info_hash: [u8; 20], peer_id: [u8; 20]) -> Self {
     let mut prot = [0; 19];
     prot.copy_from_slice(PROTOCOL_STRING.as_bytes());
     Handshake {

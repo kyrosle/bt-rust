@@ -97,8 +97,7 @@ impl Counter {
   /// This assumes that this function is called once a second.
   pub fn reset(&mut self) {
     // https://github.com/arvidn/libtorrent/blob/master/src/stat.cpp
-    self.avg = (self.avg * (Self::WEIGHT - 1) as f64
-      / Self::WEIGHT as f64)
+    self.avg = (self.avg * (Self::WEIGHT - 1) as f64 / Self::WEIGHT as f64)
       + (self.round as f64 / Self::WEIGHT as f64);
 
     self.round = 0;

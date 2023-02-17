@@ -37,16 +37,7 @@ pub(crate) type FileIndex = usize;
 
 /// Each torrent gets a randomly assigned ID that is globally unique.
 /// This id used in engine APIs to interact with torrents.
-#[derive(
-  Debug,
-  Copy,
-  Clone,
-  Default,
-  PartialEq,
-  Eq,
-  PartialOrd,
-  Hash,
-)]
+#[derive(Debug, Copy, Clone, Default, PartialEq, Eq, PartialOrd, Hash)]
 pub struct TorrentId(u32);
 
 impl TorrentId {
@@ -55,19 +46,13 @@ impl TorrentId {
 
     // the atomic is not synchronized data access around
     // it so relaxed ordering is fine for out purposes.
-    let id = TORRENT_ID.fetch_add(
-      1,
-      std::sync::atomic::Ordering::Release,
-    );
+    let id = TORRENT_ID.fetch_add(1, std::sync::atomic::Ordering::Release);
     TorrentId(id)
   }
 }
 
 impl fmt::Display for TorrentId {
-  fn fmt(
-    &self,
-    f: &mut fmt::Formatter<'_>,
-  ) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "t#{}", self.0)
   }
 }
@@ -84,10 +69,7 @@ pub struct Block {
 
 impl Block {
   /// Constructs a new block based on the metadata and data.
-  pub fn new(
-    info: BlockInfo,
-    data: impl Into<BlockData>,
-  ) -> Self {
+  pub fn new(info: BlockInfo, data: impl Into<BlockData>) -> Self {
     Block {
       piece_index: info.piece_index,
       offset: info.offset,

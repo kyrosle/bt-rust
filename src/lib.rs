@@ -25,9 +25,7 @@ pub mod prelude {
   pub use crate::{
     alert::{Alert, AlertReceiver},
     conf::Conf,
-    engine::{
-      self, EngineHandle, Mode, TorrentParams,
-    },
+    engine::{self, EngineHandle, Mode, TorrentParams},
     error::Error,
     metainfo::Metainfo,
     TorrentId,

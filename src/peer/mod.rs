@@ -36,9 +36,7 @@ use crate::{
   error::{Error, PeerError, PeerResult},
   peer::{
     codec::{
-      handshake::{
-        Handshake, HandshakeCodec, PROTOCOL_STRING,
-      },
+      handshake::{Handshake, HandshakeCodec, PROTOCOL_STRING},
       message::{Message, MessageId},
       peercodec::PeerCodec,
     },
@@ -55,8 +53,7 @@ pub mod session;
 
 /// After this timeout if the peers haven't become interested in each other,
 /// the connection is severed.
-const INACTIVITY_TIMEOUT: Duration =
-  Duration::from_secs(60);
+const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// The most essential information of a peer session
 /// that is sent to torrent with each session tick.
@@ -206,15 +203,11 @@ impl PeerSession {
   ///
   /// This constructor only initializes the session components but does not
   /// actually start it.
-  pub fn new(
-    torrent: Arc<TorrentContext>,
-    addr: SocketAddr,
-  ) -> (Self, Sender) {
+  pub fn new(torrent: Arc<TorrentContext>, addr: SocketAddr) -> (Self, Sender) {
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
 
     let piece_count = torrent.storage.piece_count;
-    let log_target =
-      format!("peer [{}][{}]", torrent.id, addr);
+    let log_target = format!("peer [{}][{}]", torrent.id, addr);
 
     (
       PeerSession {
@@ -244,9 +237,7 @@ impl PeerSession {
   /// constructor, send a handshake, and start the session.
   ///
   /// It returns if the connection is closed or an error occurred.
-  pub async fn start_outbound(
-    &mut self,
-  ) -> PeerResult<()> {
+  pub async fn start_outbound(&mut self) -> PeerResult<()> {
     log::info!(
         target: &self.ctx.log_target,
         "Starting outbound session"
@@ -258,11 +249,8 @@ impl PeerSession {
         "Connecting to peer"
     );
 
-    self.ctx.set_connection_state(
-      ConnectionState::Connecting,
-    );
-    let socket =
-      TcpStream::connect(self.peer.addr).await?;
+    self.ctx.set_connection_state(ConnectionState::Connecting);
+    let socket = TcpStream::connect(self.peer.addr).await?;
 
     log::info!(
         target: &self.ctx.log_target,
@@ -279,18 +267,13 @@ impl PeerSession {
   /// with a handshake, and starts the session.
   ///
   /// It returns if the connection is closed or an error occurred.
-  pub async fn start_inbound(
-    &mut self,
-    socket: TcpStream,
-  ) -> PeerResult<()> {
+  pub async fn start_inbound(&mut self, socket: TcpStream) -> PeerResult<()> {
     log::info!(
         target: &self.ctx.log_target,
         "Starting inbound session"
     );
 
-    self.ctx.set_connection_state(
-      ConnectionState::Connecting,
-    );
+    self.ctx.set_connection_state(ConnectionState::Connecting);
     let socket = Framed::new(socket, HandshakeCodec);
 
     self.start(socket, Direction::Inbound).await
@@ -302,17 +285,13 @@ impl PeerSession {
     mut socket: Framed<TcpStream, HandshakeCodec>,
     direction: Direction,
   ) -> PeerResult<()> {
-    self.ctx.set_connection_state(
-      ConnectionState::Handshaking,
-    );
+    self.ctx.set_connection_state(ConnectionState::Handshaking);
 
     // if this is an outbound connection, we have to send the first
     // handshake
     if direction == Direction::Outbound {
-      let handshake = Handshake::new(
-        self.torrent.info_hash,
-        self.torrent.client_id,
-      );
+      let handshake =
+        Handshake::new(self.torrent.info_hash, self.torrent.client_id);
 
       log::info!(
           target: &self.ctx.log_target,
@@ -351,18 +330,12 @@ impl PeerSession {
 
       // codec should only return handshake if the protocol string
       // in it is valid
-      debug_assert_eq!(
-        peer_handshake.prot,
-        PROTOCOL_STRING.as_bytes()
-      );
+      debug_assert_eq!(peer_handshake.prot, PROTOCOL_STRING.as_bytes());
 
-      self.ctx.counters.protocol.down +=
-        peer_handshake.len();
+      self.ctx.counters.protocol.down += peer_handshake.len();
 
       // verify that the advertised torrent info hash is the same as ours
-      if peer_handshake.info_hash
-        != self.torrent.info_hash
-      {
+      if peer_handshake.info_hash != self.torrent.info_hash {
         log::info!(
             target: &self.ctx.log_target,
             "Peer handshake invalid info hash"
@@ -377,18 +350,15 @@ impl PeerSession {
 
       // if this is an inbound connection, we reply with the handshake
       if direction == Direction::Inbound {
-        let handshake = Handshake::new(
-          self.torrent.info_hash,
-          self.torrent.client_id,
-        );
+        let handshake =
+          Handshake::new(self.torrent.info_hash, self.torrent.client_id);
 
         log::info!(
             target: &self.ctx.log_target,
             "Sending handshake"
         );
 
-        self.ctx.counters.protocol.up +=
-          handshake.len();
+        self.ctx.counters.protocol.up += handshake.len();
         socket.send(handshake).await?;
       }
 
@@ -398,8 +368,7 @@ impl PeerSession {
       // it may contain bytes of any potential message the peer may have
       // sent after the handshake)
       let old_parts = socket.into_parts();
-      let mut new_parts =
-        FramedParts::new(old_parts.io, PeerCodec);
+      let mut new_parts = FramedParts::new(old_parts.io, PeerCodec);
 
       // reuse buffers of pervious codec.
       new_parts.read_buf = old_parts.read_buf;
@@ -407,17 +376,15 @@ impl PeerSession {
       let socket = Framed::from_parts(new_parts);
 
       // update torrent of connection
-      self.torrent.cmd_tx.send(
-        torrent::Command::PeerConnected {
-          addr: self.peer.addr,
-          id: peer_handshake.peer_id,
-        },
-      )?;
+      self.torrent.cmd_tx.send(torrent::Command::PeerConnected {
+        addr: self.peer.addr,
+        id: peer_handshake.peer_id,
+      })?;
 
       // enter the piece availability exchange state
-      self.ctx.set_connection_state(
-        ConnectionState::AvailabilityExchange,
-      );
+      self
+        .ctx
+        .set_connection_state(ConnectionState::AvailabilityExchange);
       log::info!(
           target: &self.ctx.log_target,
           "Session state: {:?}", self.ctx.state
@@ -431,38 +398,28 @@ impl PeerSession {
             e
         );
 
-        self.ctx.set_connection_state(
-          ConnectionState::Disconnected,
-        );
+        self.ctx.set_connection_state(ConnectionState::Disconnected);
 
-        self.torrent.cmd_tx.send(
-          torrent::Command::PeerState {
-            addr: self.peer.addr,
-            info: self.session_info(),
-          },
-        )?;
-        self.torrent.alert_tx.send(Alert::Error(
-          Error::Peer {
-            id: self.torrent.id,
-            addr: self.peer.addr,
-            error: e,
-          },
-        ))?;
+        self.torrent.cmd_tx.send(torrent::Command::PeerState {
+          addr: self.peer.addr,
+          info: self.session_info(),
+        })?;
+        self.torrent.alert_tx.send(Alert::Error(Error::Peer {
+          id: self.torrent.id,
+          addr: self.peer.addr,
+          error: e,
+        }))?;
       }
     } else {
       log::error!(
           target: &self.ctx.log_target,
           "No handshake received"
       );
-      self.ctx.set_connection_state(
-        ConnectionState::Disconnected,
-      );
-      self.torrent.cmd_tx.send(
-        torrent::Command::PeerState {
-          addr: self.peer.addr,
-          info: self.session_info(),
-        },
-      )?;
+      self.ctx.set_connection_state(ConnectionState::Disconnected);
+      self.torrent.cmd_tx.send(torrent::Command::PeerState {
+        addr: self.peer.addr,
+        info: self.session_info(),
+      })?;
     }
 
     // session exited as a result of a clean shutdown or an error,
@@ -481,15 +438,11 @@ impl PeerSession {
 
     // send a state update message to torrent to actualize possible download
     // stats changes.
-    self.ctx.set_connection_state(
-      ConnectionState::Disconnected,
-    );
-    self.torrent.cmd_tx.send(
-      torrent::Command::PeerState {
-        addr: self.peer.addr,
-        info: self.session_info(),
-      },
-    )?;
+    self.ctx.set_connection_state(ConnectionState::Disconnected);
+    self.torrent.cmd_tx.send(torrent::Command::PeerState {
+      addr: self.peer.addr,
+      info: self.session_info(),
+    })?;
     Ok(())
   }
 
@@ -511,8 +464,7 @@ impl PeerSession {
     // a peer is allowed to advertise their pieces. If we have pieces
     // available, send a bitfield message.
     {
-      let piece_picker_guard =
-        self.torrent.piece_picker.read().await;
+      let piece_picker_guard = self.torrent.piece_picker.read().await;
       let own_pieces = piece_picker_guard.own_pieces();
       if own_pieces.any() {
         log::info!(
@@ -520,9 +472,7 @@ impl PeerSession {
             "Sending piece availability"
         );
 
-        sink
-          .send(Message::Bitfield(own_pieces.clone()))
-          .await?;
+        sink.send(Message::Bitfield(own_pieces.clone())).await?;
 
         log::info!(
             target: &self.ctx.log_target,
@@ -532,8 +482,7 @@ impl PeerSession {
     }
 
     // used for collecting session stats every second
-    let mut tick_timer =
-      time::interval(Duration::from_secs(1));
+    let mut tick_timer = time::interval(Duration::from_secs(1));
 
     // start the loop for receiving messages from peer and commands
     // from other parts of the engine
@@ -617,20 +566,14 @@ impl PeerSession {
   /// and when it updates the target request queue size.
   async fn tick(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     now: Instant,
   ) -> PeerResult<()> {
     // if we haven't become interested in each other for too long, disconnect.
     if !self.ctx.state.is_interested
       && !self.ctx.state.is_peer_interested
       && now.saturating_duration_since(
-        self
-          .ctx
-          .connected_time
-          .expect("not connected"),
+        self.ctx.connected_time.expect("not connected"),
       ) >= INACTIVITY_TIMEOUT
     {
       log::warn!(target: &self.ctx.log_target, "Not interested in each other, disconnecting");
@@ -651,25 +594,18 @@ impl PeerSession {
           target: &self.ctx.log_target,
           "State changed, updating torrent"
       );
-      self.torrent.cmd_tx.send(
-        torrent::Command::PeerState {
-          addr: self.peer.addr,
-          info: self.session_info(),
-        },
-      )?;
+      self.torrent.cmd_tx.send(torrent::Command::PeerState {
+        addr: self.peer.addr,
+        info: self.session_info(),
+      })?;
     }
 
     // update session context
-    let prev_queue_len =
-      self.ctx.target_request_queue_len;
+    let prev_queue_len = self.ctx.target_request_queue_len;
     self.ctx.tick();
-    if let (
-      Some(prev_queue_len),
-      Some(curr_queue_len),
-    ) = (
-      prev_queue_len,
-      self.ctx.target_request_queue_len,
-    ) {
+    if let (Some(prev_queue_len), Some(curr_queue_len)) =
+      (prev_queue_len, self.ctx.target_request_queue_len)
+    {
       if prev_queue_len != curr_queue_len {
         log::info!(
             target: &self.ctx.log_target,
@@ -707,18 +643,13 @@ impl PeerSession {
   /// Times out the peer if it hasn't sent a request in too long.
   async fn check_request_timeout(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
   ) -> PeerResult<()> {
     if let Some(last_outgoing_request_time) =
       self.ctx.last_outgoing_request_time
     {
-      let elapsed_since_last_request = Instant::now()
-        .saturating_duration_since(
-          last_outgoing_request_time,
-        );
+      let elapsed_since_last_request =
+        Instant::now().saturating_duration_since(last_outgoing_request_time);
 
       let request_timeout = self.ctx.request_timeout();
 
@@ -756,16 +687,13 @@ impl PeerSession {
   /// Marks requests blocks as free in their respective downloads so that
   /// other peer sessions may download them.
   async fn free_pending_blocks(&mut self) {
-    let downloads_guard =
-      self.torrent.downloads.read().await;
+    let downloads_guard = self.torrent.downloads.read().await;
     for block in self.outgoing_requests.drain() {
       // The piece may no longer be present if it was completed by
       // another peer in the meantime and torrent removed it from
       // the shared download store. This is fine, in this case we
       // don't have anything to do.
-      if let Some(download) =
-        downloads_guard.get(&block.piece_index)
-      {
+      if let Some(download) = downloads_guard.get(&block.piece_index) {
         log::debug!(
             target: &self.ctx.log_target,
             "Freeing block {} for download",
@@ -790,10 +718,7 @@ impl PeerSession {
   /// (currently only the bitfield message).
   async fn handle_bitfield_msg(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     mut bitfield: Bitfield,
   ) -> PeerResult<()> {
     log::info!(
@@ -820,8 +745,7 @@ impl PeerSession {
     // According to the spec if the remainder contains any non-zero bits,
     // we need to abort the connection. Not sure if this is too strict,
     // there doesn't seem much harm in it so we skip the check.
-    bitfield
-      .resize(self.torrent.storage.piece_count, false);
+    bitfield.resize(self.torrent.storage.piece_count, false);
 
     // register peer's pieces with piece picker and determine interest in it
     let is_interested = self
@@ -831,12 +755,9 @@ impl PeerSession {
       .await
       .register_peer_pieces(&bitfield);
     self.peer.pieces = bitfield;
-    self.peer.piece_count =
-      self.peer.pieces.count_ones();
+    self.peer.piece_count = self.peer.pieces.count_ones();
 
-    if self.peer.piece_count
-      == self.torrent.storage.piece_count
-    {
+    if self.peer.piece_count == self.torrent.storage.piece_count {
       log::info!(
           target: &self.ctx.log_target,
           "Peer is a seed, interested: {}",
@@ -859,15 +780,11 @@ impl PeerSession {
   /// Handles messages from peer that are expected in the `Connected` state.
   async fn handle_msg(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     msg: Message,
   ) -> PeerResult<()> {
     // record protocol message size
-    self.ctx.counters.protocol.down +=
-      msg.protocol_len();
+    self.ctx.counters.protocol.down += msg.protocol_len();
 
     match msg {
       Message::KeepAlive => {
@@ -881,9 +798,7 @@ impl PeerSession {
             target: &self.ctx.log_target,
             "Peer sent bitfield message not after handshake"
         );
-        return Err(
-          PeerError::BitfieldNotAfterHandshake,
-        );
+        return Err(PeerError::BitfieldNotAfterHandshake);
       }
       Message::Choke => {
         if !self.ctx.state.is_choked {
@@ -895,9 +810,7 @@ impl PeerSession {
           // for our pending requests and free them for other peers to
           // download
           self.free_pending_blocks().await;
-          self.ctx.update_state(|state| {
-            state.is_choked = true
-          });
+          self.ctx.update_state(|state| state.is_choked = true);
         }
       }
       Message::Unchoke => {
@@ -906,9 +819,7 @@ impl PeerSession {
               target: &self.ctx.log_target,
               "Peer unchoked us"
           );
-          self.ctx.update_state(|state| {
-            state.is_choked = false
-          });
+          self.ctx.update_state(|state| state.is_choked = false);
 
           // if we're interested, start sending requests
           if self.ctx.state.is_interested {
@@ -953,9 +864,7 @@ impl PeerSession {
         }
       }
       Message::Have { piece_index } => {
-        self
-          .handle_have_msg(sink, piece_index)
-          .await?;
+        self.handle_have_msg(sink, piece_index).await?;
       }
       Message::Request(block_info) => {
         self.handle_request_msg(block_info).await?;
@@ -970,12 +879,7 @@ impl PeerSession {
           offset,
           len: data.len() as u32,
         };
-        self
-          .handle_block_msg(
-            block_info,
-            data.into_owned(),
-          )
-          .await?;
+        self.handle_block_msg(block_info, data.into_owned()).await?;
 
         // we may be able to make more requests now that a block
         // has arrived.
@@ -999,10 +903,7 @@ impl PeerSession {
   /// requests.
   async fn make_requests(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
   ) -> PeerResult<()> {
     log::trace!(
         target: &self.ctx.log_target,
@@ -1029,33 +930,25 @@ impl PeerSession {
 
     // TODO: optimize this by using the preallocated hash-set in self
     let mut requests = Vec::new();
-    let target_request_queue_len = self
-      .ctx
-      .target_request_queue_len
-      .unwrap_or_default();
+    let target_request_queue_len =
+      self.ctx.target_request_queue_len.unwrap_or_default();
 
     // If we have active downloads, prefer to continue those.
     // This will result in less in-progress pieces.
-    for download in
-      self.torrent.downloads.write().await.values_mut()
-    {
+    for download in self.torrent.downloads.write().await.values_mut() {
       // check and calculate the number of requests we can make now
       let outgoing_request_count =
         requests.len() + self.outgoing_requests.len();
 
       // our outgoing request queue shouldn't exceed the allowed
       // request queue size.
-      if outgoing_request_count
-        >= target_request_queue_len
-      {
+      if outgoing_request_count >= target_request_queue_len {
         break;
       }
 
-      let to_request_count = target_request_queue_len
-        - outgoing_request_count;
+      let to_request_count = target_request_queue_len - outgoing_request_count;
 
-      let mut download_write_guard =
-        download.write().await;
+      let mut download_write_guard = download.write().await;
 
       log::trace!(
           target: &self.ctx.log_target,
@@ -1078,26 +971,18 @@ impl PeerSession {
 
       // our outgoing request queue shouldn't exceed the allowed request
       // queue size
-      if outgoing_request_count
-        >= target_request_queue_len
-      {
+      if outgoing_request_count >= target_request_queue_len {
         break;
       }
 
-      let to_request_count = target_request_queue_len
-        - outgoing_request_count;
+      let to_request_count = target_request_queue_len - outgoing_request_count;
 
       log::debug!(
           target: &self.ctx.log_target,
           "Trying to pick new piece"
       );
 
-      if let Some(index) = self
-        .torrent
-        .piece_picker
-        .write()
-        .await
-        .pick_piece()
+      if let Some(index) = self.torrent.piece_picker.write().await.pick_piece()
       {
         log::info!(
             target: &self.ctx.log_target,
@@ -1105,10 +990,8 @@ impl PeerSession {
             index,
         );
 
-        let mut download = PieceDownload::new(
-          index,
-          self.torrent.storage.piece_len(index),
-        );
+        let mut download =
+          PieceDownload::new(index, self.torrent.storage.piece_len(index));
 
         download.pick_blocks(
           to_request_count,
@@ -1143,8 +1026,7 @@ impl PeerSession {
           requests.len(),
           self.outgoing_requests.len()
       );
-      self.ctx.last_outgoing_request_time =
-        Some(Instant::now());
+      self.ctx.last_outgoing_request_time = Some(Instant::now());
 
       // make the actual requests
       for req in requests.into_iter() {
@@ -1158,8 +1040,7 @@ impl PeerSession {
         // TODO: batch these in a single sys-call, or is this already
         // being done by the tokio codec type?
         sink.send(Message::Request(req)).await?;
-        self.ctx.counters.protocol.up +=
-          MessageId::Request.header_len();
+        self.ctx.counters.protocol.up += MessageId::Request.header_len();
       }
     }
 
@@ -1187,10 +1068,7 @@ impl PeerSession {
       .await
       .get(&block_info.piece_index)
     {
-      Some(download) => download
-        .write()
-        .await
-        .received_block(&block_info),
+      Some(download) => download.write().await.received_block(&block_info),
       None => {
         log::warn!(
             target: &self.ctx.log_target,
@@ -1234,13 +1112,11 @@ impl PeerSession {
 
       // validate and save the block to disk by sending a write
       // command to the disk task.
-      self.torrent.disk_tx.send(
-        disk::Command::WriteBlock {
-          id: self.torrent.id,
-          block_info,
-          data,
-        },
-      )?;
+      self.torrent.disk_tx.send(disk::Command::WriteBlock {
+        id: self.torrent.id,
+        block_info,
+        data,
+      })?;
     }
     Ok(())
   }
@@ -1293,13 +1169,11 @@ impl PeerSession {
 
     // validate and save the block to disk by sending a write command
     // to the disk task.
-    self.torrent.disk_tx.send(
-      disk::Command::ReadBlock {
-        id: self.torrent.id,
-        block_info,
-        result_tx: self.cmd_tx.clone(),
-      },
-    )?;
+    self.torrent.disk_tx.send(disk::Command::ReadBlock {
+      id: self.torrent.id,
+      block_info,
+      result_tx: self.cmd_tx.clone(),
+    })?;
 
     Ok(())
   }
@@ -1308,10 +1182,7 @@ impl PeerSession {
   /// (hasn't canceled the request)
   async fn send_block(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     block: Block,
   ) -> PeerResult<()> {
     let info = block.info();
@@ -1323,8 +1194,7 @@ impl PeerSession {
     );
 
     // remove peer's pending request
-    let was_present =
-      self.incoming_requests.remove(&info);
+    let was_present = self.incoming_requests.remove(&info);
 
     // check if the request hasn't been canceled yet
     if !was_present {
@@ -1368,10 +1238,7 @@ impl PeerSession {
   /// start making requests.
   async fn handle_have_msg(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     piece_index: PieceIndex,
   ) -> PeerResult<()> {
     log::info!(
@@ -1408,10 +1275,7 @@ impl PeerSession {
   /// Checks whether we have become or stopped being interested in the peer.
   async fn update_interest(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     is_interested: bool,
   ) -> PeerResult<()> {
     // we may have become interested in peer
@@ -1420,23 +1284,20 @@ impl PeerSession {
           target: &self.ctx.log_target,
           "Became interested in peer"
       );
-      self.ctx.counters.protocol.up +=
-        MessageId::Interested.header_len();
-      self.ctx.update_state(|state| {
-        state.is_interested = is_interested
-      });
+      self.ctx.counters.protocol.up += MessageId::Interested.header_len();
+      self
+        .ctx
+        .update_state(|state| state.is_interested = is_interested);
       // send interested message to peer
       sink.send(Message::Interested).await?;
-    } else if self.ctx.state.is_interested
-      && !is_interested
-    {
+    } else if self.ctx.state.is_interested && !is_interested {
       log::info!(
           target: &self.ctx.log_target,
           "No longer interested in peer"
       );
-      self.ctx.update_state(|state| {
-        state.is_interested = is_interested
-      });
+      self
+        .ctx
+        .update_state(|state| state.is_interested = is_interested);
       // TODO: do anything else?
     }
     Ok(())
@@ -1444,21 +1305,15 @@ impl PeerSession {
 
   /// Validates that the block info refers to a valid piece's valid block in
   /// torrent.
-  fn validate_block_info(
-    &self,
-    info: &BlockInfo,
-  ) -> PeerResult<()> {
+  fn validate_block_info(&self, info: &BlockInfo) -> PeerResult<()> {
     log::trace!(
         target: &self.ctx.log_target,
         "Validating {}",
         info
     );
     self.validate_piece_index(info.piece_index)?;
-    let piece_len =
-      self.torrent.storage.piece_len(info.piece_index);
-    if info.len > 0
-      && info.offset + info.len <= piece_len
-    {
+    let piece_len = self.torrent.storage.piece_len(info.piece_index);
+    if info.len > 0 && info.offset + info.len <= piece_len {
       Ok(())
     } else {
       log::warn!(
@@ -1471,10 +1326,7 @@ impl PeerSession {
   }
 
   /// Validates that the index refers to a valid piece in torrent.
-  fn validate_piece_index(
-    &self,
-    index: PieceIndex,
-  ) -> PeerResult<()> {
+  fn validate_piece_index(&self, index: PieceIndex) -> PeerResult<()> {
     if index < self.torrent.storage.piece_count {
       Ok(())
     } else {
@@ -1493,10 +1345,7 @@ impl PeerSession {
   /// that we need to cancel. If peer doesn't have the piece, we announce it.
   async fn handle_piece_completion(
     &mut self,
-    sink: &mut SplitSink<
-      Framed<TcpStream, PeerCodec>,
-      Message,
-    >,
+    sink: &mut SplitSink<Framed<TcpStream, PeerCodec>, Message>,
     piece_index: PieceIndex,
   ) -> PeerResult<()> {
     // if peer doesn't have the piece, announce it.

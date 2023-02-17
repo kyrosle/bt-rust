@@ -5,10 +5,7 @@ use serde_derive::Deserialize;
 use super::{deserialize_peers, deserialize_seconds};
 
 #[derive(Debug, Deserialize)]
-#[cfg_attr(
-  test,
-  derive(PartialEq, serde_derive::Serialize)
-)]
+#[cfg_attr(test, derive(PartialEq, serde_derive::Serialize))]
 pub struct Response {
   /// The tracker Id. If set, we must send it with each subsequent announce.
   #[serde(rename = "tracker id")]

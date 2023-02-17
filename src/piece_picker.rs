@@ -41,8 +41,7 @@ impl PiecePicker {
   /// Creates a new piece picker with the given own_pieces we already have.
   pub fn new(own_pieces: Bitfield) -> Self {
     let mut pieces = Vec::new();
-    pieces
-      .resize_with(own_pieces.len(), Piece::default);
+    pieces.resize_with(own_pieces.len(), Piece::default);
     let missing_count = own_pieces.count_zeros();
     PiecePicker {
       own_pieces,
@@ -78,10 +77,7 @@ impl PiecePicker {
       // already downloading it (whether it's not pending)
       debug_assert!(index < self.pieces.len());
       let piece = &mut self.pieces[index];
-      if !self.own_pieces[index]
-        && piece.frequency > 0
-        && !piece.is_pending
-      {
+      if !self.own_pieces[index] && piece.frequency > 0 && !piece.is_pending {
         // set pending flag on piece so that this piece is not picked
         // again (see note on field)
         piece.is_pending = true;
@@ -104,27 +100,18 @@ impl PiecePicker {
   /// Panics if the peer sent us pieces with a different count than ours.
   /// The validity of the pieces must be ensured at the protocol level
   /// (in [`crate::peer::PeerSession`])
-  pub fn register_peer_pieces(
-    &mut self,
-    pieces: &Bitfield,
-  ) -> bool {
-    log::trace!(
-      "Registering piece availability: {}",
-      pieces
-    );
+  pub fn register_peer_pieces(&mut self, pieces: &Bitfield) -> bool {
+    log::trace!("Registering piece availability: {}", pieces);
 
     assert_eq!(
-            pieces.len(),
-            self.own_pieces.len(),
-            "peer's bitfield must be the same length as ours"
-        );
+      pieces.len(),
+      self.own_pieces.len(),
+      "peer's bitfield must be the same length as ours"
+    );
 
     let mut interested = false;
-    for (index, (have_piece, peer_has_piece)) in self
-      .own_pieces
-      .iter()
-      .zip(pieces.iter())
-      .enumerate()
+    for (index, (have_piece, peer_has_piece)) in
+      self.own_pieces.iter().zip(pieces.iter()).enumerate()
     {
       // increase frequency count for this piece if peer has it
       if *peer_has_piece {
@@ -149,19 +136,11 @@ impl PiecePicker {
   ///
   /// Panics if the piece index is out of range. The index validity must be
   /// ensured at the protocol level (in [`crate::peer::Session`]).
-  pub fn register_peer_piece(
-    &mut self,
-    index: PieceIndex,
-  ) -> bool {
-    log::trace!(
-      "Registering newly available piece {}",
-      index
-    );
+  pub fn register_peer_piece(&mut self, index: PieceIndex) -> bool {
+    log::trace!("Registering newly available piece {}", index);
 
-    let is_interested = self
-      .own_pieces
-      .get(index)
-      .expect("invalid piece index");
+    let is_interested =
+      self.own_pieces.get(index).expect("invalid piece index");
 
     self.pieces[index].frequency += 1;
     *is_interested
@@ -169,18 +148,13 @@ impl PiecePicker {
 
   /// Tells the piece picker that we
   pub fn received_piece(&mut self, index: PieceIndex) {
-    log::trace!(
-      "Registering received piece {}",
-      index
-    );
+    log::trace!("Registering received piece {}", index);
 
     // we assert here as this method is only called by internal methods on
     // piece completion, meaning the piece must exist (we can't download an
     // invalid piece)
-    let mut have_piece = self
-      .own_pieces
-      .get_mut(index)
-      .expect("invalid piece index");
+    let mut have_piece =
+      self.own_pieces.get_mut(index).expect("invalid piece index");
 
     // we must not already have this piece as otherwise the free/missing
     // count logic is thrown off.
@@ -223,16 +197,12 @@ mod tests {
   #[test]
   fn should_pick_all_pieces() {
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
-    let available_pieces =
-      Bitfield::repeat(true, piece_count);
-    piece_picker
-      .register_peer_pieces(&available_pieces);
+    let mut piece_picker = PiecePicker::empty(piece_count);
+    let available_pieces = Bitfield::repeat(true, piece_count);
+    piece_picker.register_peer_pieces(&available_pieces);
 
     // save picked pieces
-    let mut picked =
-      HashSet::with_capacity(piece_count);
+    let mut picked = HashSet::with_capacity(piece_count);
 
     // pick all pieces one by one
     for index in 0..piece_count {
@@ -256,12 +226,9 @@ mod tests {
   #[test]
   fn should_mark_piece_as_received() {
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
-    let available_pieces =
-      Bitfield::repeat(true, piece_count);
-    piece_picker
-      .register_peer_pieces(&available_pieces);
+    let mut piece_picker = PiecePicker::empty(piece_count);
+    let available_pieces = Bitfield::repeat(true, piece_count);
+    piece_picker.register_peer_pieces(&available_pieces);
     assert!(piece_picker.own_pieces.not_any());
 
     // mark pieces as received
@@ -277,9 +244,7 @@ mod tests {
     for _ in 0..piece_count - owned_pieces.len() {
       let pick = piece_picker.pick_piece().unwrap();
       // assert that it's not a piece we already have
-      assert!(owned_pieces
-        .iter()
-        .all(|owned| *owned != pick));
+      assert!(owned_pieces.iter().all(|owned| *owned != pick));
     }
   }
 
@@ -287,23 +252,16 @@ mod tests {
   fn should_count_missing_pieces() {
     // empty piece picker
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
+    let mut piece_picker = PiecePicker::empty(piece_count);
 
-    assert_eq!(
-      piece_picker.missing_piece_count(),
-      piece_count
-    );
+    assert_eq!(piece_picker.missing_piece_count(), piece_count);
 
     // set 2 pieces
     let have_count = 2;
     for index in 0..have_count {
       piece_picker.received_piece(index);
     }
-    assert_eq!(
-      piece_picker.missing_piece_count(),
-      piece_count - have_count
-    );
+    assert_eq!(piece_picker.missing_piece_count(), piece_count - have_count);
 
     // set all pieces
     for index in have_count..piece_count {
@@ -318,12 +276,9 @@ mod tests {
   fn should_count_free_pieces() {
     // empty piece picker
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
+    let mut piece_picker = PiecePicker::empty(piece_count);
     // NOTE: need to register frequency before we pick any pieces
-    piece_picker.register_peer_pieces(
-      &Bitfield::repeat(true, piece_count),
-    );
+    piece_picker.register_peer_pieces(&Bitfield::repeat(true, piece_count));
 
     assert_eq!(piece_picker.free_count, piece_count);
 
@@ -358,59 +313,47 @@ mod tests {
   fn should_determine_interest() {
     // empty piece picker
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
+    let mut piece_picker = PiecePicker::empty(piece_count);
 
     // we are interested if peer has all pieces
-    let available_pieces =
-      Bitfield::repeat(true, piece_count);
-    assert!(piece_picker
-      .register_peer_pieces(&available_pieces));
+    let available_pieces = Bitfield::repeat(true, piece_count);
+    assert!(piece_picker.register_peer_pieces(&available_pieces));
 
     // we are also interested if peer has at least a single piece
-    let mut available_pieces =
-      Bitfield::repeat(false, piece_count);
+    let mut available_pieces = Bitfield::repeat(false, piece_count);
     available_pieces.set(0, true);
-    assert!(piece_picker
-      .register_peer_pieces(&available_pieces));
+    assert!(piece_picker.register_peer_pieces(&available_pieces));
 
     // half full piece picker
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
+    let mut piece_picker = PiecePicker::empty(piece_count);
     for index in 0..8 {
       piece_picker.received_piece(index);
     }
 
     // we are not interested in peer that has the same pieces we do
-    let mut available_pieces =
-      Bitfield::repeat(false, piece_count);
+    let mut available_pieces = Bitfield::repeat(false, piece_count);
     for index in 0..8 {
       available_pieces.set(index, true);
     }
-    assert!(!piece_picker
-      .register_peer_pieces(&available_pieces));
+    assert!(!piece_picker.register_peer_pieces(&available_pieces));
 
     // we are interested in peer that has at least a single piece we don't
-    let mut available_pieces =
-      Bitfield::repeat(false, piece_count);
+    let mut available_pieces = Bitfield::repeat(false, piece_count);
     for index in 0..9 {
       available_pieces.set(index, true);
     }
-    assert!(piece_picker
-      .register_peer_pieces(&available_pieces));
+    assert!(piece_picker.register_peer_pieces(&available_pieces));
 
     // full piece picker
     let piece_count = 15;
-    let mut piece_picker =
-      PiecePicker::empty(piece_count);
+    let mut piece_picker = PiecePicker::empty(piece_count);
     for index in 0..piece_count {
       piece_picker.received_piece(index);
     }
 
     // we are not interested in any pieces since we own all of them
-    assert!(!piece_picker
-      .register_peer_pieces(&available_pieces));
+    assert!(!piece_picker.register_peer_pieces(&available_pieces));
   }
 
   impl PiecePicker {

@@ -26,10 +26,7 @@ impl Tracker {
   ///
   /// This may be used by a torrent to request peers to download form.
   /// And report the current status information to the the tracker.
-  pub async fn announce(
-    &self,
-    params: Announce,
-  ) -> Result<Response> {
+  pub async fn announce(&self, params: Announce) -> Result<Response> {
     let mut query = vec![
       ("port", params.port.to_string()),
       ("downloaded", params.downloaded.to_string()),
@@ -54,10 +51,8 @@ impl Tracker {
         &params.info_hash,
         URL_ENCODE_RESERVED
       ),
-      peer_id = percent_encoding::percent_encode(
-        &params.peer_id,
-        URL_ENCODE_RESERVED
-      )
+      peer_id =
+        percent_encoding::percent_encode(&params.peer_id, URL_ENCODE_RESERVED)
     );
 
     let resp = self
@@ -76,10 +71,7 @@ impl Tracker {
 }
 
 impl fmt::Display for Tracker {
-  fn fmt(
-    &self,
-    f: &mut fmt::Formatter<'_>,
-  ) -> fmt::Result {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "'{}'", self.url)
   }
 }

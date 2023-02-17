@@ -1,9 +1,6 @@
-pub use tokio::{
-  io::Error as IoError, sync::mpsc::error::SendError,
-};
+pub use tokio::{io::Error as IoError, sync::mpsc::error::SendError};
 
-pub type Result<T, E = PeerError> =
-  std::result::Result<T, E>;
+pub type Result<T, E = PeerError> = std::result::Result<T, E>;
 
 /// Error type returned on failed peer sessions.
 ///
