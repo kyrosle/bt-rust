@@ -8,6 +8,8 @@ I will support the win/linux/android platform
 by using [`yew`](https://github.com/yewstack/yew) + [`tauri`](https://github.com/tauri-apps/tauri), 
 that is, the application will be wholly written by rust program language(with some js code for wasm-bingen).
 
+Now only supporting basic `BtTorrent` protocol, not including `DHT`, `Fast extension`
+
 Create Entity Entity:
 ```mermaid
 graph TB
