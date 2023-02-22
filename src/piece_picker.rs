@@ -18,6 +18,8 @@ pub struct PiecePicker {
   missing_count: usize,
   /// A cache for the number of pieces that can be picked.
   free_count: usize,
+  /// current peer session available to be used(a cache count of [`Torrent::peers`]).
+  peer_count: usize,
 }
 
 /// Metadata about a piece relevant for the piece picker.
@@ -48,7 +50,18 @@ impl PiecePicker {
       pieces,
       missing_count,
       free_count: missing_count,
+      peer_count: 0,
     }
+  }
+
+  /// A Cache storage for [`Torrent::peers`]
+  pub fn increase_peer_count(&mut self) {
+    self.peer_count += 1;
+  }
+
+  /// A Cache storage for [`Torrent::peers`]
+  pub fn reduce_peer_count(&mut self) {
+    self.peer_count -= 1;
   }
 
   /// Returns an immutable reference to a bitfield of pieces we own.
@@ -69,6 +82,7 @@ impl PiecePicker {
 
   /// Returns the first piece that we don't yet have and isn't already being
   /// downloaded, or None, if no piece can be picked at this time.
+  ///
   pub fn pick_piece(&mut self) -> Option<PieceIndex> {
     log::trace!("Picking next piece");
 
@@ -85,6 +99,67 @@ impl PiecePicker {
         log::trace!("Pending piece {}", index);
         return Some(index);
       }
+    }
+
+    // no piece could be picked
+    log::trace!("Could not pick piece");
+    None
+  }
+
+  /// Here is the old version:
+  /// just select the first piece which we are not having, but peer has.
+  ///
+  /// [`PiecePicker::pick_piece(&mut self) -> Option<PieceIndex>`]
+  ///
+  /// We should support the `right-get style` picker strategy:
+  /// `pretty rare with biggest distance from another completed piece`.
+  ///
+  /// Reference orgin link: (http://bittorrent.org/beps/bep_0019.html)
+  ///
+  /// This method strategy has two cases:
+  /// - when the total downloading schedule is less than 50%, using the right-get style.
+  /// - otherwise, piece selection randomly.
+  pub fn pick_piece_right_get(
+    &mut self,
+    peer_field: &Bitfield,
+  ) -> Option<PieceIndex> {
+    log::trace!("Picking next piece");
+
+    let max_piece = self.own_pieces.len();
+
+    // x is the square root of the number of peers minus 1.
+    let x = ((self.peer_count as f64).sqrt() as usize - 1).max(1);
+    // Gaps are spaces of multiple pieces in a row that the client does not have.
+    let mut gap = 0;
+    let mut cur_gap = 0;
+    let mut cur_rarest = max_piece;
+
+    let mut next_piece = 0;
+    let mut selected = false;
+
+    for index in 0..max_piece {
+      let piece = self.pieces[index];
+      if !self.own_pieces[index] && piece.frequency > 0 && !piece.is_pending {
+        gap += 1;
+        if peer_field[index] {
+          let piece_rareness = self.pieces[index].frequency;
+          if piece_rareness < (cur_rarest - x)
+            || (piece_rareness <= (cur_gap + x) && gap > cur_gap)
+          {
+            cur_rarest = piece_rareness;
+            cur_gap = gap;
+            next_piece = index;
+            selected = true;
+          }
+        }
+      }
+    }
+
+    if selected {
+      self.pieces[next_piece].is_pending = true;
+      self.free_count -= 1;
+      log::trace!("Pending piece {}", next_piece);
+      return Some(next_piece);
     }
 
     // no piece could be picked

@@ -6,7 +6,7 @@ mod tests {
     time::Duration,
   };
 
-  use mockito::{mock, Matcher};
+  use mockito::Matcher;
   use serde_derive::{Deserialize, Serialize};
 
   use crate::tracker::prelude::*;
@@ -28,7 +28,7 @@ mod tests {
     encoded.extend_from_slice(&encode_compact_peers_list(&[(ip, port)]));
     encoded.push(b'e');
 
-    let decoded: PeersResponse = serde_bencode::from_bytes(&encoded)
+    let decoded: PeersResponse = serde_bencoded::from_bytes(&encoded)
       .expect("cannot decode bencode string of peers");
 
     let addr = SocketAddr::new(ip.into(), port);
@@ -66,9 +66,9 @@ mod tests {
       ],
     };
 
-    let encoded = serde_bencode::to_string(&peers).unwrap();
+    let encoded = serde_bencoded::to_string(&peers).unwrap();
 
-    let decoded: PeersResponse = serde_bencode::from_str(&encoded)
+    let decoded: PeersResponse = serde_bencoded::from_str(&encoded)
       .expect("cannot decode bencode list of peers");
     let expected: Vec<_> = peers
       .peers
@@ -80,7 +80,8 @@ mod tests {
 
   #[tokio::test]
   async fn should_return_peers_on_announce() {
-    let addr = mockito::server_url();
+    let mut server = mockito::Server::new_async().await;
+    let addr = server.url();
     let tracker = Tracker::new(addr.parse().unwrap());
 
     let info_hash_str = "abcdefghij1234567890";
@@ -141,7 +142,8 @@ mod tests {
     // register the mock server.
     // (receive the specified announce and return the specified expected-response)
     // both in bencode.
-    let _m = mock("GET", "/")
+    let _m = server
+      .mock("GET", "/")
       .match_query(Matcher::AllOf(vec![
         Matcher::UrlEncoded("compact".into(), "1".into()),
         Matcher::UrlEncoded("info_hash".into(), info_hash_str.into()),
@@ -160,7 +162,7 @@ mod tests {
       ]))
       .with_status(200)
       .with_body(encoded_resp)
-      .create();
+      .create_async().await;
 
     let resp = tracker.announce(announce).await.unwrap();
     assert_eq!(resp, expected_resp);

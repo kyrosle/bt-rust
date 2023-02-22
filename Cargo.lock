@@ -117,7 +117,7 @@ dependencies = [
  "rand",
  "reqwest",
  "serde",
- "serde_bencode",
+ "serde_bencoded",
  "serde_bytes",
  "serde_derive",
  "sha1",
@@ -126,6 +126,15 @@ dependencies = [
  "tokio",
  "tokio-util",
  "url",
+]
+
+[[package]]
+name = "btoi"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9dd6407f73a9b8b6162d8a2ef999fe6afd7cc15902ebf42c5cd296addf17e0ad"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -473,7 +482,7 @@ checksum = "75f43d41e26995c17e71ee126451dd3941010b0514a81a9d11f3b341debc2399"
 dependencies = [
  "bytes",
  "fnv",
- "itoa",
+ "itoa 1.0.5",
 ]
 
 [[package]]
@@ -514,7 +523,7 @@ dependencies = [
  "http-body",
  "httparse",
  "httpdate",
- "itoa",
+ "itoa 1.0.5",
  "pin-project-lite",
  "socket2",
  "tokio",
@@ -570,6 +579,12 @@ name = "ipnet"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30e22bd8629359895450b59ea7a776c850561b96a3b1d31321c1949d9e6c9146"
+
+[[package]]
+name = "itoa"
+version = "0.4.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
 
 [[package]]
 name = "itoa"
@@ -688,6 +703,15 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "578ede34cf02f8924ab9447f50c28075b4d3e5b269972345e7e0372b38c6cdcd"
+dependencies = [
+ "autocfg",
 ]
 
 [[package]]
@@ -1008,13 +1032,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bb7d1f0d3021d347a83e556fc4683dea2ea09d87bccdf88ff5c12545d89d5efb"
 
 [[package]]
-name = "serde_bencode"
-version = "0.2.3"
+name = "serde_bencoded"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "934d8bdbaa0126dafaea9a8833424a211d9661897717846c6bb782349ca1c30d"
+checksum = "cf340f808c7d1f04ab77e83735b4306399bbf183987a488fbc854ecddb94e047"
 dependencies = [
+ "btoi",
+ "itoa 0.4.8",
  "serde",
- "serde_bytes",
 ]
 
 [[package]]
@@ -1043,7 +1068,7 @@ version = "1.0.91"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877c235533714907a8c2464236f5c4b2a17262ef1bd71f38f35ea592c8da6883"
 dependencies = [
- "itoa",
+ "itoa 1.0.5",
  "ryu",
  "serde",
 ]
@@ -1055,7 +1080,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3491c14715ca2294c4d6a88f15e84739788c1d030eed8c110436aafdaa2f3fd"
 dependencies = [
  "form_urlencoded",
- "itoa",
+ "itoa 1.0.5",
  "ryu",
  "serde",
 ]

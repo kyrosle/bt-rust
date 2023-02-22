@@ -53,7 +53,7 @@ impl Metainfo {
   /// - If having multi files, the `files` should not be empty.
   pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
     // parse the file and then do verification.
-    let metainfo: raw::Metainfo = serde_bencode::from_bytes(bytes)?;
+    let metainfo: raw::Metainfo = serde_bencoded::from_bytes(bytes)?;
 
     // the pieces field is a concatenation of 20 byte SHA-1 hashes, so it
     // must be a multiple of 20
@@ -144,7 +144,7 @@ impl Metainfo {
         for tracker in announce.iter() {
           let url = Url::parse(tracker)?;
 
-          // may use UDP ???
+          // TODO: may use UDP ???
           if url.scheme() == "http" || url.scheme() == "https" {
             trackers.push(url);
           }
@@ -162,7 +162,7 @@ impl Metainfo {
     }
 
     // create the info hash.
-    let info_hash = metainfo.crate_info_hash()?;
+    let info_hash = metainfo.create_info_hash()?;
 
     Ok(Metainfo {
       name: metainfo.info.name,
@@ -215,8 +215,8 @@ mod raw {
   }
 
   impl Metainfo {
-    pub fn crate_info_hash(&self) -> Result<Sha1Hash> {
-      let info = serde_bencode::to_bytes(&self.info)?;
+    pub fn create_info_hash(&self) -> Result<Sha1Hash> {
+      let info = serde_bencoded::to_vec(&self.info)?;
       let digest = sha1::Sha1::digest(info);
       let mut info_hash = [0; 20];
       info_hash.copy_from_slice(&digest);

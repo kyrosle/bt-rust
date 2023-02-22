@@ -10,7 +10,6 @@
 
 use std::{
   collections::HashSet,
-  io::Write,
   net::SocketAddr,
   sync::Arc,
   time::{Duration, Instant},
@@ -982,7 +981,9 @@ impl PeerSession {
           "Trying to pick new piece"
       );
 
-      if let Some(index) = self.torrent.piece_picker.write().await.pick_piece()
+      // old version:
+      // if let Some(index) = self.torrent.piece_picker.write().await.pick_piece()
+      if let Some(index) = self.torrent.piece_picker.write().await.pick_piece_right_get(&self.peer.pieces)
       {
         log::info!(
             target: &self.ctx.log_target,

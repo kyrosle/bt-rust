@@ -6,7 +6,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC};
 use serde::de;
 use serde_derive::Deserialize;
 
-use crate::error::metainfo::BencodeError;
+use crate::error::metainfo::BencodeDeError;
 use crate::error::tracker::TrackerError;
 
 pub mod announce;
@@ -76,7 +76,7 @@ where
       let buf_len = b.len();
 
       if buf_len % ENTRY_LEN != 0 {
-        return Err(TrackerError::Bencode(BencodeError::InvalidValue(
+        return Err(TrackerError::BencodeDe(BencodeDeError::Message(
           "peers compact string must be a multiple of 6".into(),
         )))
         .map_err(E::custom);

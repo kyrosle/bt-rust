@@ -1,9 +1,6 @@
 //! This module defines types used to configure the engine and its parts.
 
-use std::{path::PathBuf, ptr::slice_from_raw_parts, time::Duration};
-
-use once_cell::sync::Lazy;
-use rand::Rng;
+use std::{path::PathBuf, time::Duration};
 
 use crate::PeerId;
 
@@ -24,12 +21,12 @@ pub struct Conf {
   pub torrent: TorrentConf,
 }
 
-fn get_random_string(len: usize) -> String {
-  rand::thread_rng()
-    .sample_iter::<char, _>(rand::distributions::Standard)
-    .take(len)
-    .collect()
-}
+// fn get_random_string(len: usize) -> String {
+//   rand::thread_rng()
+//     .sample_iter::<char, _>(rand::distributions::Standard)
+//     .take(len)
+//     .collect()
+// }
 
 impl Conf {
   /// Returns the torrent configuration with reasonable defaults,

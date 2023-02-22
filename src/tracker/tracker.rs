@@ -65,7 +65,7 @@ impl Tracker {
       .bytes()
       .await?;
 
-    let resp = serde_bencode::from_bytes(&resp)?;
+    let resp = serde_bencoded::from_bytes(&resp)?;
     Ok(resp)
   }
 }

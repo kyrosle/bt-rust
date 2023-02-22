@@ -1,11 +1,14 @@
-pub use serde_bencode::Error as BencodeError;
+pub use serde_bencoded::DeError as BencodeDeError;
+pub use serde_bencoded::SerError as BencodeSerError;
 
 pub(crate) type Result<T> = std::result::Result<T, MetainfoError>;
 
 #[derive(thiserror::Error, Debug)]
 pub enum MetainfoError {
   #[error("{0}")]
-  Bencode(BencodeError),
+  BencodeDe(BencodeDeError),
+  #[error("{0}")]
+  BencodeSer(BencodeSerError),
 
   #[error("Invalid Metainfo")]
   InvalidMetainfo,
@@ -17,9 +20,15 @@ pub enum MetainfoError {
   InvalidTrackerUrl,
 }
 
-impl From<BencodeError> for MetainfoError {
-  fn from(error: BencodeError) -> Self {
-    Self::Bencode(error)
+impl From<BencodeDeError> for MetainfoError {
+  fn from(error: BencodeDeError) -> Self {
+    Self::BencodeDe(error)
+  }
+}
+
+impl From<BencodeSerError> for MetainfoError {
+  fn from(error: BencodeSerError) -> Self {
+    Self::BencodeSer(error)
   }
 }
 
