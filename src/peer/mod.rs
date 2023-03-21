@@ -983,7 +983,7 @@ impl PeerSession {
 
       // old version:
       // if let Some(index) = self.torrent.piece_picker.write().await.pick_piece()
-      if let Some(index) = self.torrent.piece_picker.write().await.pick_piece_right_get(&self.peer.pieces)
+      if let Some(index) = self.torrent.piece_picker.write().await.pick_piece()
       {
         log::info!(
             target: &self.ctx.log_target,

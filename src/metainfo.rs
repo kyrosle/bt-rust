@@ -240,12 +240,15 @@ mod raw {
     /// number of bytes per piece. This is commonly 28 KiB = 256 KiB = 262,144 B
     pub piece_len: u32,
     #[serde(rename = "length")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     /// size of the file in bytes (only when one file is being shared though)
     pub len: Option<u64>,
     /// a list of dictionaries each corresponding to a file (only when multiple files are being shared)
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<File>>,
     /// not used filed but kept in here,
     /// maybe for encode back a valid info hash for hashing.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub private: Option<u8>,
   }
 

@@ -114,7 +114,7 @@ impl PiecePicker {
   /// We should support the `right-get style` picker strategy:
   /// `pretty rare with biggest distance from another completed piece`.
   ///
-  /// Reference orgin link: (http://bittorrent.org/beps/bep_0019.html)
+  /// Reference origin link: (http://bittorrent.org/beps/bep_0019.html)
   ///
   /// This method strategy has two cases:
   /// - when the total downloading schedule is less than 50%, using the right-get style.

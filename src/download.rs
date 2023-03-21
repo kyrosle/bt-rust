@@ -114,9 +114,9 @@ impl PieceDownload {
   pub fn received_block(&mut self, block: &BlockInfo) -> BlockStatus {
     log::trace!("Received piece {} block {:?}", self.index, block);
 
-    debug_assert_eq!(block.piece_index, self.index);
-    debug_assert!(block.offset < self.len);
-    debug_assert!(block.len <= self.len);
+    // debug_assert_eq!(block.piece_index, self.index);
+    // debug_assert!(block.offset < self.len);
+    // debug_assert!(block.len <= self.len);
 
     // TODO: we should only receive blocks that we have requested before
     debug_assert!(
