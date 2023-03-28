@@ -22,7 +22,7 @@ impl From<BencodeDeError> for TrackerError {
 
 impl From<BencodeSerError> for TrackerError {
   fn from(error: BencodeSerError) -> Self {
-      Self::BencodeSer(error) 
+    Self::BencodeSer(error)
   }
 }
 

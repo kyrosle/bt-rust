@@ -1,11 +1,15 @@
-use std::{collections::BTreeMap, ops::Range, sync};
+use std::{
+  collections::BTreeMap,
+  io::{IoSlice, IoSliceMut},
+  ops::Range,
+  sync::{self, Arc},
+};
 
 use sha1::{Digest, Sha1};
 
 use crate::{
-  blockinfo::{block_count, CachedBlock},
+  blockinfo::{block_count, block_len, CachedBlock},
   error::disk::{ReadError, WriteError},
-  iovecs::IoVec,
   FileIndex, Sha1Hash,
 };
 
@@ -81,7 +85,7 @@ impl Piece {
     let mut blocks = self
       .blocks
       .values()
-      .map(|b| IoVec::from_slice(b))
+      .map(|b| IoSlice::new(b.as_slice()))
       .collect::<Vec<_>>();
 
     // the actual slice of blocks being worked on.
@@ -114,13 +118,11 @@ impl Piece {
       debug_assert!(file_slice.len > 0);
       // the write buffer should still contain bytes to write
       debug_assert!(!bufs.is_empty());
-      debug_assert!(!bufs[0].as_slice().is_empty());
+      debug_assert!(!bufs[0].is_empty());
 
       // write to file
-      // //println!("{file_slice:?}");
-      // //println!("buf :{bufs:?}");
+
       let tail = file.write(file_slice, bufs)?;
-      // //println!("tail:{tail:?}");
 
       // `write_vectored_at` only writes at most `slice.len` bytes
       // of `bufs` to disk and returns the portion that wasn't
@@ -158,46 +160,44 @@ pub fn read(
   len: u32,
 ) -> Result<Vec<CachedBlock>, ReadError> {
   // reserve a read buffer for all blocks in piece
-  // let block_count = block_count(len);
-  // let mut blocks: Vec<Vec<u8>> = Vec::with_capacity(block_count);
-
-  // for i in 0..block_count {
-  //     let block_len = block_len(len, i);
-  //     let mut buf = Vec::new();
-  //     buf.resize(block_len as usize, 0u8);
-  //     blocks.push(buf)
-  // }
+  let block_count = block_count(len);
+  let mut blocks = Vec::with_capacity(block_count);
+  for i in 0..block_count {
+    let block_len = block_len(len, i);
+    let mut buf = Vec::new();
+    buf.resize(block_len as usize, 0u8);
+    blocks.push(Arc::new(buf));
+  }
 
   // convert the block to IO slices that the underlying
   // system-call can deal with.
-  // let mut iovecs: Vec<IoVec> = blocks
-  //     .iter_mut()
-  //     .map(|b| {
-  //         IoVec::new(
-  //             Arc::get_mut(b)
-  //                 .expect("cannot get mut ref to buffer only used by this thread")
-  //                 .as_mut_slice(),
-  //         )
-  //     })
-  //     .collect();
+  let mut iovecs = blocks
+    .iter_mut()
+    .map(|b| {
+      IoSliceMut::new(
+        Arc::get_mut(b)
+          .expect("cannot get mut ref to buffer only used by this thread")
+          .as_mut_slice(),
+      )
+    })
+    .collect::<Vec<IoSliceMut>>();
 
-  let mut blocks = vec![];
+  let mut bufs = iovecs.as_mut_slice();
 
-  // loop through all files piece overlaps with and read that part of
-  // file
+  // loop through all files piece overlaps with and read that part of file.
   let files = &files[file_range];
   debug_assert!(!files.is_empty());
   let len = len as u64;
 
   // the offset at which we need to read from torrent, which is updated
-  // with each read
+  // with each read.
   let mut torrent_read_offset = torrent_piece_offset;
   let mut total_read_count = 0;
 
   for file in files.iter() {
     let file = file.read().unwrap();
 
-    // determine which part of the file we need to read from
+    // determine which part of the file we need to read from.
     debug_assert!(len > total_read_count);
     let remaining_pieces_len = len - total_read_count;
     let file_slice = file
@@ -209,9 +209,7 @@ pub fn read(
     debug_assert!(file_slice.len > 0);
 
     // read data
-    // //println!("in piece::read buf before read {:?}", bufs);
-    blocks.push(file.read(file_slice)?);
-    // //println!("in piece::read buf after  read {:?}", bufs);
+    bufs = file.read(file_slice, bufs)?;
 
     torrent_read_offset += file_slice.len;
     total_read_count += file_slice.len;
@@ -219,8 +217,6 @@ pub fn read(
 
   // we should have read in the whole piece
   debug_assert_eq!(total_read_count, len);
-
-  let blocks = blocks.into_iter().flatten().collect();
 
   Ok(blocks)
 }

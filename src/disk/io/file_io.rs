@@ -1,14 +1,16 @@
 //! TODO:  if target_os == linux using preadv and pwritev
 //! the relevant module `iovecs`, `pieces`, `file_io`.
-use std::{os::windows::prelude::FileExt, sync::Arc};
+use std::{
+  io::{IoSlice, IoSliceMut},
+  os::fd::AsRawFd,
+};
 
 use crate::{
-  blockinfo::CachedBlock,
   error::disk::{ReadError, WriteError},
-  iovecs::{IoVec, IoVecs},
+  iovecs::{advance, IoVecs},
   storage_info::FileSlice,
-  BLOCK_LEN,
 };
+use nix::sys::uio::{preadv, pwritev};
 
 use super::file::TorrentFile;
 
@@ -29,16 +31,16 @@ impl TorrentFile {
   pub fn write<'a>(
     &mut self,
     file_slice: FileSlice,
-    blocks: &'a mut [IoVec],
-  ) -> Result<&'a mut [IoVec], WriteError> {
-    let iovecs = IoVecs::bounded(blocks, file_slice.len as usize);
-    //println!("iovecs: {iovecs:?}");
+    blocks: &'a mut [IoSlice<'a>],
+  ) -> Result<&'a mut [IoSlice<'a>], WriteError> {
+    let mut iovecs = IoVecs::bounded(blocks, file_slice.len as usize);
+
     // the write buffer cannot be larger than the file slice we want to write to.
     debug_assert!(
       iovecs
         .as_slice()
         .iter()
-        .map(|iov| iov.as_slice().len() as u64)
+        .map(|iov| iov.len() as u64)
         .sum::<u64>()
         <= file_slice.len
     );
@@ -46,13 +48,30 @@ impl TorrentFile {
     // IO system-call are not guaranteed to transfer the whole input buffer in
     // one go, so we need to repeat until all bytes have been confirmed to be
     // transferred to dis (or an error occurs)
-    // let mut total_write_count = 0;
+    let mut total_write_count = 0;
 
-    //  let write_count = pwritev(
-    //     self.handle.as_raw_fd(),
-    //     iovecs.as_slice(),
-    //     file_slice.offset as i64,
-    // )
+    while !iovecs.as_slice().is_empty() {
+      let write_count = pwritev(
+        self.handle.as_raw_fd(),
+        iovecs.as_slice(),
+        file_slice.offset as i64,
+      )
+      .map_err(|e| {
+        log::warn!("File {:?} write error: {}", self.info.path, e);
+        WriteError::Io(std::io::Error::last_os_error())
+      })?;
+
+      total_write_count += write_count;
+
+      if total_write_count as u64 == file_slice.len {
+        break;
+      }
+
+      // advance the buffer cursor in iovecs by the number of bytes
+      // transferred
+      iovecs.advance(write_count);
+    }
+
     // let offset = self
     //     .handle
     //     .seek(io::SeekFrom::Start(file_slice.offset))
@@ -78,13 +97,14 @@ impl TorrentFile {
     //     "write in {:?}",
     //     iovecs.as_u8_vec().as_slice(),
     // );
-    self
-      .handle
-      .seek_write(iovecs.as_u8_vec().as_slice(), file_slice.offset)
-      .map_err(|e| {
-        log::trace!("File {:?} write error: {}", self.info.path, e);
-        WriteError::Io(std::io::Error::last_os_error())
-      })?;
+
+    // self
+    //   .handle
+    //   .seek_write(iovecs.as_u8_vec().as_slice(), file_slice.offset)
+    //   .map_err(|e| {
+    //     log::trace!("File {:?} write error: {}", self.info.path, e);
+    //     WriteError::Io(std::io::Error::last_os_error())
+    //   })?;
 
     // tally up the total write count
     // total_write_count += write_count as u64;
@@ -97,8 +117,6 @@ impl TorrentFile {
     //     break;
     // }
 
-    // advance the buffer cursor in iovecs by the number of bytes
-    // transferred
     // iovecs.advance(write_count);
 
     Ok(iovecs.into_tail())
@@ -117,11 +135,11 @@ impl TorrentFile {
   ///
   /// Since the system-call may be invoked repeatedly to perform disk IO, this
   /// means that this operation is not guaranteed to be atomic.
-  #[allow(clippy::modulo_one)]
-  pub fn read(
+  pub fn read<'a>(
     &self,
     file_slice: FileSlice,
-  ) -> Result<Vec<CachedBlock>, ReadError> {
+    mut iovecs: &'a mut [IoSliceMut<'a>],
+  ) -> Result<&'a mut [IoSliceMut<'a>], ReadError> {
     // This is simpler than the write implementation as the preadv methods
     // stops reading in from the file if reading EOF. We do need to advance
     // the iovecs read buffer cursor after a read as we may want to read
@@ -131,35 +149,57 @@ impl TorrentFile {
     // IO system-call are not guaranteed to transfer the whole input buffer
     // in one go, so we need to repeat until all bytes have been confirmed
     // to be transferred to disk (or an error occurred).
+    let mut total_read_count = 0;
+    while !iovecs.is_empty() && (total_read_count as u64) < file_slice.len {
+      let read_count =
+        preadv(self.handle.as_raw_fd(), iovecs, file_slice.offset as i64)
+          .map_err(|e| {
+            log::warn!("File {:?} read error: {}", self.info.path, e);
+            ReadError::Io(std::io::Error::last_os_error())
+          })?;
 
-    let mut data = vec![0u8; file_slice.len as usize];
-    let total_read_count = self
-      .handle
-      .seek_read(&mut data, file_slice.offset)
-      .map_err(|e| {
-        log::warn!("File {:?} read error: {}", self.info.path, e);
-        ReadError::Io(std::io::Error::last_os_error())
-      })?;
+      // if there was nothing to read from file it means we tried to
+      // read a piece from a portion of a file not yet downloaded or
+      // otherwise missing.
+      if read_count == 0 {
+        return Err(ReadError::MissingData);
+      }
 
-    if total_read_count == 0 {
-      return Err(ReadError::MissingData);
+      // tally up the total read count
+      total_read_count += read_count;
+
+      // advance the buffer cursor in iovecs by the number of bytes
+      // transferred
+      iovecs = advance(iovecs, read_count);
     }
+    // let mut data = vec![0u8; file_slice.len as usize];
+    // let total_read_count = self
+    //   .handle
+    //   .seek_read(&mut data, file_slice.offset)
+    //   .map_err(|e| {
+    //     log::warn!("File {:?} read error: {}", self.info.path, e);
+    //     ReadError::Io(std::io::Error::last_os_error())
+    //   })?;
 
-    let blocks = data
-      .into_iter()
-      .fold((Vec::new(), 0), |(mut vec, index), x| {
-        if index % BLOCK_LEN == 0 {
-          vec.push(Vec::new());
-        }
-        vec.last_mut().unwrap().push(x);
-        (vec, index + 1)
-      })
-      .0
-      .into_iter()
-      .map(Arc::new)
-      .collect();
+    // if total_read_count == 0 {
+    //   return Err(ReadError::MissingData);
+    // }
 
-    Ok(blocks)
+    // let blocks = data
+    //   .into_iter()
+    //   .fold((Vec::new(), 0), |(mut vec, index), x| {
+    //     if index % BLOCK_LEN == 0 {
+    //       vec.push(Vec::new());
+    //     }
+    //     vec.last_mut().unwrap().push(x);
+    //     (vec, index + 1)
+    //   })
+    //   .0
+    //   .into_iter()
+    //   .map(Arc::new)
+    //   .collect();
+
+    // Ok(blocks)
 
     // //println!("{}", total_read_count);
     // //println!("{:?}", iovecs);
@@ -194,20 +234,8 @@ impl TorrentFile {
     //             log::trace!("File {:?} read error: {}", self.info.path, e);
     //             ReadError::Io(std::io::Error::last_os_error())
     //         })?;
-
-    //     // if there was nothing to read from file it means we tried to
-    //     // read a piece from a portion of a file not yet downloaded or
-    //     // otherwise missing.
-    //     if read_count == 0 {
-    //         return Err(ReadError::MissingData);
-    //     }
-
-    //     // tally up the total read count
-    //     total_read_count += read_count as u64;
-
-    //     // advance the buffer cursor in iovecs by the number of bytes
-    //     // transferred
-    //     iovecs = advance(iovecs, read_count);
     // }
+
+    Ok(iovecs)
   }
 }

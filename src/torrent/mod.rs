@@ -685,7 +685,11 @@ impl Torrent {
   /// torrent in order to perform various pieces of logic (the choke
   /// algorithm and detailed reporting to user, neither of which is done at
   /// the moment).
-  async fn handle_peer_state_change(&mut self, addr: SocketAddr, info: SessionTick) {
+  async fn handle_peer_state_change(
+    &mut self,
+    addr: SocketAddr,
+    info: SessionTick,
+  ) {
     if let Some(peer) = self.peers.get_mut(&addr) {
       log::debug!("Updating peer {} state", addr);
 

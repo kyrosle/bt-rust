@@ -162,7 +162,8 @@ mod tests {
       ]))
       .with_status(200)
       .with_body(encoded_resp)
-      .create_async().await;
+      .create_async()
+      .await;
 
     let resp = tracker.announce(announce).await.unwrap();
     assert_eq!(resp, expected_resp);

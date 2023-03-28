@@ -56,11 +56,13 @@ rand = "0.8.5"
 pretty_assertions = "1.3.0"
 
 # TODO: using the nix::uio::Iovec is Deprecated, need fix to use IoSlice or IoSliceMut
-#       but the pwritev and the preadv still being used.
-# [target."cfg(target_os = \"linux\")".dependencies]
-# nix = "*"
+# but the pwritev and the preadv still being used.
+
 
 
 [dev-dependencies]
 # start local test serer
 mockito = "1.0.0"
+
+[target.x86_64-unknown-linux-gnu.dependencies]
+nix = "0.26.2"

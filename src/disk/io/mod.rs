@@ -8,7 +8,7 @@ pub mod torrent;
 mod tests {
   use std::{
     collections::BTreeMap,
-    io::{Read, Seek},
+    io::{IoSlice, Read, Seek},
     ops::Range,
     path::{Path, PathBuf},
     sync,
@@ -22,7 +22,6 @@ mod tests {
       piece::{self, Piece},
     },
     error::disk::ReadError,
-    iovecs::IoVec,
     storage_info::FileInfo,
     FileIndex, BLOCK_LEN,
   };
@@ -51,11 +50,11 @@ mod tests {
 
     // write buffers
     let file_slice = file.info.get_slice(0, piece.len as u64);
-    let mut iovecs: Vec<IoVec> = piece
+    let mut iovecs = piece
       .blocks
       .values()
-      .map(|b| IoVec::from_slice(b))
-      .collect();
+      .map(|b| IoSlice::new(b))
+      .collect::<Vec<_>>();
     // //println!("{:?}", iovecs);
     let tail = file
       .write(file_slice, &mut iovecs)

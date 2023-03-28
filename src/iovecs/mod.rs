@@ -52,13 +52,17 @@
 //! the first half of the split would be [0, 25),
 //! the second half would be [25, 32).
 
-#[cfg(target_os = "linux")]
-pub use nix::sys::uio::IoVec;
+// FIXME: after adapting the linux iovec, than enable this feature, or using `iovec` in linux and using `wasbuf` in window.
+// #[cfg(target_os = "linux")]
+// pub use nix::sys::uio::IoVec;
 
-#[cfg(target_os = "windows")]
-pub mod iovec;
-#[cfg(target_os = "windows")]
-pub use iovec::IoVec;
+// #[cfg(target_os = "windows")]
+pub mod iovec_unit;
+// #[cfg(target_os = "windows")]
+pub use iovec_unit::IoVec;
 
-pub mod utils;
-pub use utils::*;
+pub mod test;
+
+#[allow(clippy::module_inception)]
+pub mod iovecs;
+pub use iovecs::*;
