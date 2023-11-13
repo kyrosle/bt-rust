@@ -53,7 +53,7 @@
 //! the second half would be [25, 32).
 
 // FIXME: after adapting the linux iovec, than enable this feature, or using `iovec` in linux and using `wasbuf` in window.
-// #[cfg(target_os = "linux")]
+// #[cfg(any(target_os = "linux", target_os = "macos"))]
 // pub use nix::sys::uio::IoVec;
 
 // #[cfg(target_os = "windows")]
