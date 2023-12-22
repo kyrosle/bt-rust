@@ -38,7 +38,7 @@ bytes = "1.3.0"
 bitvec = "1.0.1"
 
 # lru strategy cache
-lru = "0.10.0"
+lru = "0.12.1"
 
 # create tempfile or tempdir for test quickly
 tempfile = "3.3.0"
@@ -59,13 +59,12 @@ pretty_assertions = "1.3.0"
 # but the pwritev and the preadv still being used.
 
 
-
 [dev-dependencies]
 # start local test serer
 mockito = "1.0.0"
 
 [target.x86_64-unknown-linux-gnu.dependencies]
-nix = "0.26.2"
+nix = {version =  "0.27.1", features = ["uio"]}
 
 [target.aarch64-apple-darwin.dependencies]
-nix = "0.26.2"
+nix = {version =  "0.27.1", features = ["uio"]}

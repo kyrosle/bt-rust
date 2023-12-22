@@ -446,6 +446,7 @@ struct RawBuf {
   ptr: *const u8,
   len: usize,
 }
+
 #[derive(Debug)]
 #[cfg(target_os = "windows")]
 struct RawBuf {

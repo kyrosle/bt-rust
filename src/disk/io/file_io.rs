@@ -2,7 +2,7 @@
 //! the relevant module `iovecs`, `pieces`, `file_io`.
 use std::{
   io::{IoSlice, IoSliceMut},
-  os::fd::AsRawFd,
+  os::fd::AsFd,
 };
 
 use crate::{
@@ -52,7 +52,7 @@ impl TorrentFile {
 
     while !iovecs.as_slice().is_empty() {
       let write_count = pwritev(
-        self.handle.as_raw_fd(),
+        self.handle.as_fd(),
         iovecs.as_slice(),
         file_slice.offset as i64,
       )
@@ -152,11 +152,12 @@ impl TorrentFile {
     let mut total_read_count = 0;
     while !iovecs.is_empty() && (total_read_count as u64) < file_slice.len {
       let read_count =
-        preadv(self.handle.as_raw_fd(), iovecs, file_slice.offset as i64)
-          .map_err(|e| {
+        preadv(self.handle.as_fd(), iovecs, file_slice.offset as i64).map_err(
+          |e| {
             log::warn!("File {:?} read error: {}", self.info.path, e);
             ReadError::Io(std::io::Error::last_os_error())
-          })?;
+          },
+        )?;
 
       // if there was nothing to read from file it means we tried to
       // read a piece from a portion of a file not yet downloaded or

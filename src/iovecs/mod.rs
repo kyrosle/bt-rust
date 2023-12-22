@@ -56,9 +56,9 @@
 // #[cfg(any(target_os = "linux", target_os = "macos"))]
 // pub use nix::sys::uio::IoVec;
 
-// #[cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
 pub mod iovec_unit;
-// #[cfg(target_os = "windows")]
+#[cfg(target_os = "windows")]
 pub use iovec_unit::IoVec;
 
 pub mod test;
